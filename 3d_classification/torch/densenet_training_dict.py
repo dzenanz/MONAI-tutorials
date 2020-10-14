@@ -23,7 +23,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 import monai
 from monai.metrics import compute_roc_auc
-from monai.transforms import AddChanneld, Compose, LoadNiftid, RandRotate90d, Resized, ScaleIntensityd, ToTensord
+from monai.transforms import AddChanneld, Compose, LoadNiftid, RandRotated, Resized, ScaleIntensityd, ToTensord
 
 
 def main():
@@ -36,16 +36,22 @@ def main():
         data = json.load(json_file)
         for s in data['scans']:
             decision = int(s['decision'])
+            decLen = len(decisions)
+            if (decLen>1 and decisions[decLen-1]==1 and decision==0):
+                print("zero at index", decLen)
             path = os.getcwd()+"/SRI_Sessions/scanroot"+data['data_root']+s['path']+"/"            
             filenames = sorted(s['volumes'].keys())
             for f in filenames:
                 images.append(path+f+".nii.gz")
                 decisions.append(decision)
 
+    print("image count:", len(images))
+    print(decisions)
+
     # 2 binary labels for scan classification: 1=good, 0=bad
     labels = np.asarray(decisions, dtype=np.int64)
-    train_files = [{"img": img, "label": label} for img, label in zip(images[:10], labels[:10])]
-    val_files = [{"img": img, "label": label} for img, label in zip(images[-10:], labels[-10:])]
+    train_files = [{"img": img, "label": label} for img, label in zip(images[:500], labels[:500])]
+    val_files = [{"img": img, "label": label} for img, label in zip(images[-500:], labels[-500:])]
 
     # Define transforms for image
     train_transforms = Compose(
@@ -54,7 +60,7 @@ def main():
             AddChanneld(keys=["img"]),
             ScaleIntensityd(keys=["img"]),
             Resized(keys=["img"], spatial_size=(96, 96, 96)),
-            RandRotate90d(keys=["img"], prob=0.8, spatial_axes=[0, 2]),
+            RandRotated(keys=["img"], prob=0.8, range_x=5, range_y=5, range_z=5),
             ToTensord(keys=["img"]),
         ]
     )
@@ -130,7 +136,7 @@ def main():
                 if acc_metric > best_metric:
                     best_metric = acc_metric
                     best_metric_epoch = epoch + 1
-                    torch.save(model.state_dict(), "best_metric_model_classification3d_dict.pth")
+                    torch.save(model.state_dict(), "miqa01.pth")
                     print("saved new best metric model")
                 print(
                     "current epoch: {} current accuracy: {:.4f} current AUC: {:.4f} best accuracy: {:.4f} at epoch {}".format(
