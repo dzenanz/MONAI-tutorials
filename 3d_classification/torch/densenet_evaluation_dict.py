@@ -76,7 +76,7 @@ def main():
     with torch.no_grad():
         num_correct = 0.0
         metric_count = 0
-        saver = CSVSaver(output_dir="./output")
+        saver = CSVSaver(output_dir=".")
         for val_data in val_loader:
             val_images, val_labels = val_data["img"].to(device), val_data["label"].to(device)
             val_outputs = model(val_images).argmax(dim=1)
