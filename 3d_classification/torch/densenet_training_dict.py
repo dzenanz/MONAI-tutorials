@@ -9,9 +9,37 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 import logging
 import os
 import sys
+
+import json
+# Opening JSON file
+with open('SRI_Sessions/session_ann_pretty.json') as json_file:
+    data = json.load(json_file)
+
+    # Print the type of data variable
+    print("Type:", type(data))
+
+    # Print the data of dictionary
+    print("data_root:", data['data_root'])
+    print("sites:", data['sites'])
+    print("experiments:", data['experiments'])
+
+    print("scans")
+    for s in data['scans']:
+        print("experiment_id:", s['experiment_id'])
+        print("decision:", s['decision'])
+        path = os.getcwd()+"/SRI_Sessions/scanroot"+data['data_root']+s['path']+"/"
+        
+        images = sorted(s['volumes'].keys())
+        print(" ", path+images[0]+".nii.gz")
+        if len(images)>1:
+            print(" ", path+images[-1]+".nii.gz")
+        
+        print()
+sys.exit(1)
 
 import numpy as np
 import torch
