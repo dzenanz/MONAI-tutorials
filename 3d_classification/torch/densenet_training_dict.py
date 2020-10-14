@@ -78,24 +78,24 @@ def main():
 
     # Define dataset, data loader
     check_ds = monai.data.Dataset(data=train_files, transform=train_transforms)
-    check_loader = DataLoader(check_ds, batch_size=2, num_workers=4, pin_memory=torch.cuda.is_available())
+    check_loader = DataLoader(check_ds, batch_size=4, num_workers=4, pin_memory=torch.cuda.is_available())
     check_data = monai.utils.misc.first(check_loader)
     print(check_data["img"].shape, check_data["label"])
 
     # create a training data loader
     train_ds = monai.data.Dataset(data=train_files, transform=train_transforms)
-    train_loader = DataLoader(train_ds, batch_size=2, shuffle=True, num_workers=4, pin_memory=torch.cuda.is_available())
+    train_loader = DataLoader(train_ds, batch_size=4, shuffle=True, num_workers=4, pin_memory=torch.cuda.is_available())
 
     # create a validation data loader
     val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
-    val_loader = DataLoader(val_ds, batch_size=2, num_workers=4, pin_memory=torch.cuda.is_available())
+    val_loader = DataLoader(val_ds, batch_size=4, num_workers=4, pin_memory=torch.cuda.is_available())
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # calculate class weights
     goodCount = np.sum(labels[:countTrain])
     badCount = countTrain - goodCount
-    weightsArray = [badCount/countTrain, goodCount/countTrain]
+    weightsArray = [goodCount/countTrain, badCount/countTrain]
     print(f"goodCount: {goodCount}, badCount: {badCount}, weightsArray: {weightsArray}")
     classWeights = torch.tensor(weightsArray, dtype=torch.float).to(device)
 
