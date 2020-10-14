@@ -25,6 +25,7 @@ import monai
 from monai.metrics import compute_roc_auc
 from monai.transforms import AddChanneld, Compose, LoadNiftid, RandRotated, Resized, ScaleIntensityd, ToTensord
 
+model_path = os.getcwd() + "/miqa01.pth"
 
 def main():
     monai.config.print_config()
@@ -97,6 +98,9 @@ def main():
     # Create DenseNet121, CrossEntropyLoss and Adam optimizer
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = monai.networks.nets.densenet.densenet121(spatial_dims=3, in_channels=1, out_channels=2).to(device)
+    if (os.path.exists(model_path)):
+        model.load_state_dict(torch.load(model_path))
+        print(f"Loaded NN model from file '{model_path}'")
     loss_function = torch.nn.CrossEntropyLoss(weight=classWeights)
     optimizer = torch.optim.Adam(model.parameters(), 1e-5)
 
@@ -142,7 +146,7 @@ def main():
                 if acc_metric > best_metric:
                     best_metric = acc_metric
                     best_metric_epoch = epoch + 1
-                    torch.save(model.state_dict(), "miqa01.pth")
+                    torch.save(model.state_dict(), model_path)
                     print("saved new best metric model")
                 print(
                     "current epoch: {} current accuracy: {:.4f} current AUC: {:.4f} best accuracy: {:.4f} at epoch {}".format(
