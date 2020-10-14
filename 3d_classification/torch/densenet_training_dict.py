@@ -89,18 +89,23 @@ def main():
     val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
     val_loader = DataLoader(val_ds, batch_size=2, num_workers=4, pin_memory=torch.cuda.is_available())
 
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     # calculate class weights
     goodCount = np.sum(labels[:500])
     totalCount = len(images)-500
     badCount = totalCount - goodCount
-    classWeights = torch.tensor([badCount/totalCount, goodCount/totalCount])
+    weightsArray = [badCount/totalCount, goodCount/totalCount]
+    print("weightsArray:",weightsArray)
+    classWeights = torch.tensor(weightsArray, dtype=torch.float).to(device)
 
     # Create DenseNet121, CrossEntropyLoss and Adam optimizer
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = monai.networks.nets.densenet.densenet121(spatial_dims=3, in_channels=1, out_channels=2).to(device)
     if (os.path.exists(model_path)):
         model.load_state_dict(torch.load(model_path))
         print(f"Loaded NN model from file '{model_path}'")
+    else:
+        print("Training NN from scratch")
     loss_function = torch.nn.CrossEntropyLoss(weight=classWeights)
     optimizer = torch.optim.Adam(model.parameters(), 1e-5)
 
