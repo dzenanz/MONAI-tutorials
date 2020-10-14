@@ -105,13 +105,14 @@ def main():
     optimizer = torch.optim.Adam(model.parameters(), 1e-5)
 
     # start a typical PyTorch training
+    num_epochs = 8
     val_interval = 2
     best_metric = -1
     best_metric_epoch = -1
     writer = SummaryWriter()
-    for epoch in range(8):
+    for epoch in range(num_epochs):
         print("-" * 10)
-        print(f"epoch {epoch + 1}/{5}")
+        print(f"epoch {epoch + 1}/{num_epochs}")
         model.train()
         epoch_loss = 0
         step = 0
