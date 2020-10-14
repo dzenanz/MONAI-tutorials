@@ -88,10 +88,16 @@ def main():
     val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
     val_loader = DataLoader(val_ds, batch_size=2, num_workers=4, pin_memory=torch.cuda.is_available())
 
+    # calculate class weights
+    goodCount = np.sum(labels[:500])
+    totalCount = len(images)-500
+    badCount = totalCount - goodCount
+    classWeights = torch.tensor([badCount/totalCount, goodCount/totalCount])
+
     # Create DenseNet121, CrossEntropyLoss and Adam optimizer
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = monai.networks.nets.densenet.densenet121(spatial_dims=3, in_channels=1, out_channels=2).to(device)
-    loss_function = torch.nn.CrossEntropyLoss()
+    loss_function = torch.nn.CrossEntropyLoss(weight=classWeights)
     optimizer = torch.optim.Adam(model.parameters(), 1e-5)
 
     # start a typical PyTorch training
@@ -99,7 +105,7 @@ def main():
     best_metric = -1
     best_metric_epoch = -1
     writer = SummaryWriter()
-    for epoch in range(5):
+    for epoch in range(8):
         print("-" * 10)
         print(f"epoch {epoch + 1}/{5}")
         model.train()
@@ -132,7 +138,7 @@ def main():
 
                 acc_value = torch.eq(y_pred.argmax(dim=1), y)
                 acc_metric = acc_value.sum().item() / len(acc_value)
-                auc_metric = compute_roc_auc(y_pred, y, to_onehot_y=True, softmax=True)
+                auc_metric = compute_roc_auc(y_pred, y, to_onehot_y=True, softmax=True, average="weighted")
                 if acc_metric > best_metric:
                     best_metric = acc_metric
                     best_metric_epoch = epoch + 1
