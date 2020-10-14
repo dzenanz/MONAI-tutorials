@@ -13,6 +13,8 @@ import logging
 import os
 import sys
 
+import json
+
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
@@ -21,28 +23,34 @@ import monai
 from monai.data import CSVSaver
 from monai.transforms import AddChanneld, Compose, LoadNiftid, Resized, ScaleIntensityd, ToTensord
 
+model_path = os.getcwd() + "/miqa01.pth"
 
 def main():
     monai.config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
-    # IXI dataset as a demo, downloadable from https://brain-development.org/ixi-dataset/
-    images = [
-        os.sep.join(["workspace", "data", "medical", "ixi", "IXI-T1", "IXI607-Guys-1097-T1.nii.gz"]),
-        os.sep.join(["workspace", "data", "medical", "ixi", "IXI-T1", "IXI175-HH-1570-T1.nii.gz"]),
-        os.sep.join(["workspace", "data", "medical", "ixi", "IXI-T1", "IXI385-HH-2078-T1.nii.gz"]),
-        os.sep.join(["workspace", "data", "medical", "ixi", "IXI-T1", "IXI344-Guys-0905-T1.nii.gz"]),
-        os.sep.join(["workspace", "data", "medical", "ixi", "IXI-T1", "IXI409-Guys-0960-T1.nii.gz"]),
-        os.sep.join(["workspace", "data", "medical", "ixi", "IXI-T1", "IXI584-Guys-1129-T1.nii.gz"]),
-        os.sep.join(["workspace", "data", "medical", "ixi", "IXI-T1", "IXI253-HH-1694-T1.nii.gz"]),
-        os.sep.join(["workspace", "data", "medical", "ixi", "IXI-T1", "IXI092-HH-1436-T1.nii.gz"]),
-        os.sep.join(["workspace", "data", "medical", "ixi", "IXI-T1", "IXI574-IOP-1156-T1.nii.gz"]),
-        os.sep.join(["workspace", "data", "medical", "ixi", "IXI-T1", "IXI585-Guys-1130-T1.nii.gz"]),
-    ]
+    images = []
+    decisions = []
+    with open('SRI_Sessions/session_ann_pretty.json') as json_file:
+        data = json.load(json_file)
+        for s in data['scans']:
+            decision = int(s['decision'])
+            decLen = len(decisions)
+            if (decLen>1 and decisions[decLen-1]==1 and decision==0):
+                print("zero at index", decLen)
+            path = os.getcwd()+"/SRI_Sessions/scanroot"+data['data_root']+s['path']+"/"            
+            filenames = sorted(s['volumes'].keys())
+            for f in filenames:
+                images.append(path+f+".nii.gz")
+                decisions.append(decision)
 
-    # 2 binary labels for gender classification: man and woman
-    labels = np.array([0, 0, 1, 0, 1, 0, 1, 0, 1, 0], dtype=np.int64)
-    val_files = [{"img": img, "label": label} for img, label in zip(images, labels)]
+    print("image count:", len(images))
+    print(decisions)
+
+    # 2 binary labels for scan classification: 1=good, 0=bad
+    labels = np.asarray(decisions, dtype=np.int64)
+    train_files = [{"img": img, "label": label} for img, label in zip(images[:500], labels[:500])]
+    val_files = [{"img": img, "label": label} for img, label in zip(images[-500:], labels[-500:])]
 
     # Define transforms for image
     val_transforms = Compose(
@@ -63,7 +71,7 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = monai.networks.nets.densenet.densenet121(spatial_dims=3, in_channels=1, out_channels=2).to(device)
 
-    model.load_state_dict(torch.load("best_metric_model_classification3d_dict.pth"))
+    model.load_state_dict(torch.load(model_path))
     model.eval()
     with torch.no_grad():
         num_correct = 0.0
