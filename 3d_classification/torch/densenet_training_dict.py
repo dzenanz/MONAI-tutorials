@@ -15,31 +15,6 @@ import os
 import sys
 
 import json
-# Opening JSON file
-with open('SRI_Sessions/session_ann_pretty.json') as json_file:
-    data = json.load(json_file)
-
-    # Print the type of data variable
-    print("Type:", type(data))
-
-    # Print the data of dictionary
-    print("data_root:", data['data_root'])
-    print("sites:", data['sites'])
-    print("experiments:", data['experiments'])
-
-    print("scans")
-    for s in data['scans']:
-        print("experiment_id:", s['experiment_id'])
-        print("decision:", s['decision'])
-        path = os.getcwd()+"/SRI_Sessions/scanroot"+data['data_root']+s['path']+"/"
-        
-        images = sorted(s['volumes'].keys())
-        print(" ", path+images[0]+".nii.gz")
-        if len(images)>1:
-            print(" ", path+images[-1]+".nii.gz")
-        
-        print()
-sys.exit(1)
 
 import numpy as np
 import torch
@@ -55,32 +30,20 @@ def main():
     monai.config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
-    # IXI dataset as a demo, downloadable from https://brain-development.org/ixi-dataset/
-    images = [
-        os.sep.join(["workspace", "data", "medical", "ixi", "IXI-T1", "IXI314-IOP-0889-T1.nii.gz"]),
-        os.sep.join(["workspace", "data", "medical", "ixi", "IXI-T1", "IXI249-Guys-1072-T1.nii.gz"]),
-        os.sep.join(["workspace", "data", "medical", "ixi", "IXI-T1", "IXI609-HH-2600-T1.nii.gz"]),
-        os.sep.join(["workspace", "data", "medical", "ixi", "IXI-T1", "IXI173-HH-1590-T1.nii.gz"]),
-        os.sep.join(["workspace", "data", "medical", "ixi", "IXI-T1", "IXI020-Guys-0700-T1.nii.gz"]),
-        os.sep.join(["workspace", "data", "medical", "ixi", "IXI-T1", "IXI342-Guys-0909-T1.nii.gz"]),
-        os.sep.join(["workspace", "data", "medical", "ixi", "IXI-T1", "IXI134-Guys-0780-T1.nii.gz"]),
-        os.sep.join(["workspace", "data", "medical", "ixi", "IXI-T1", "IXI577-HH-2661-T1.nii.gz"]),
-        os.sep.join(["workspace", "data", "medical", "ixi", "IXI-T1", "IXI066-Guys-0731-T1.nii.gz"]),
-        os.sep.join(["workspace", "data", "medical", "ixi", "IXI-T1", "IXI130-HH-1528-T1.nii.gz"]),
-        os.sep.join(["workspace", "data", "medical", "ixi", "IXI-T1", "IXI607-Guys-1097-T1.nii.gz"]),
-        os.sep.join(["workspace", "data", "medical", "ixi", "IXI-T1", "IXI175-HH-1570-T1.nii.gz"]),
-        os.sep.join(["workspace", "data", "medical", "ixi", "IXI-T1", "IXI385-HH-2078-T1.nii.gz"]),
-        os.sep.join(["workspace", "data", "medical", "ixi", "IXI-T1", "IXI344-Guys-0905-T1.nii.gz"]),
-        os.sep.join(["workspace", "data", "medical", "ixi", "IXI-T1", "IXI409-Guys-0960-T1.nii.gz"]),
-        os.sep.join(["workspace", "data", "medical", "ixi", "IXI-T1", "IXI584-Guys-1129-T1.nii.gz"]),
-        os.sep.join(["workspace", "data", "medical", "ixi", "IXI-T1", "IXI253-HH-1694-T1.nii.gz"]),
-        os.sep.join(["workspace", "data", "medical", "ixi", "IXI-T1", "IXI092-HH-1436-T1.nii.gz"]),
-        os.sep.join(["workspace", "data", "medical", "ixi", "IXI-T1", "IXI574-IOP-1156-T1.nii.gz"]),
-        os.sep.join(["workspace", "data", "medical", "ixi", "IXI-T1", "IXI585-Guys-1130-T1.nii.gz"]),
-    ]
+    images = []
+    decisions = []
+    with open('SRI_Sessions/session_ann_pretty.json') as json_file:
+        data = json.load(json_file)
+        for s in data['scans']:
+            decision = int(s['decision'])
+            path = os.getcwd()+"/SRI_Sessions/scanroot"+data['data_root']+s['path']+"/"            
+            filenames = sorted(s['volumes'].keys())
+            for f in filenames:
+                images.append(path+f+".nii.gz")
+                decisions.append(decision)
 
-    # 2 binary labels for gender classification: man and woman
-    labels = np.array([0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0], dtype=np.int64)
+    # 2 binary labels for scan classification: 1=good, 0=bad
+    labels = np.asarray(decisions, dtype=np.int64)
     train_files = [{"img": img, "label": label} for img, label in zip(images[:10], labels[:10])]
     val_files = [{"img": img, "label": label} for img, label in zip(images[-10:], labels[-10:])]
 
