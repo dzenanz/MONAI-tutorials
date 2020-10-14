@@ -51,8 +51,9 @@ def main():
 
     # 2 binary labels for scan classification: 1=good, 0=bad
     labels = np.asarray(decisions, dtype=np.int64)
-    train_files = [{"img": img, "label": label} for img, label in zip(images[:500], labels[:500])]
-    val_files = [{"img": img, "label": label} for img, label in zip(images[-500:], labels[-500:])]
+    countTrain = 2300
+    train_files = [{"img": img, "label": label} for img, label in zip(images[:countTrain], labels[:countTrain])]
+    val_files = [{"img": img, "label": label} for img, label in zip(images[-countTrain:], labels[-countTrain:])]
 
     # Define transforms for image
     train_transforms = Compose(
@@ -92,11 +93,10 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # calculate class weights
-    goodCount = np.sum(labels[:500])
-    totalCount = len(images)-500
-    badCount = totalCount - goodCount
-    weightsArray = [badCount/totalCount, goodCount/totalCount]
-    print("weightsArray:",weightsArray)
+    goodCount = np.sum(labels[:countTrain])
+    badCount = countTrain - goodCount
+    weightsArray = [badCount/countTrain, goodCount/countTrain]
+    print(f"goodCount: {goodCount}, badCount: {badCount}, weightsArray: {weightsArray}")
     classWeights = torch.tensor(weightsArray, dtype=torch.float).to(device)
 
     # Create DenseNet121, CrossEntropyLoss and Adam optimizer
@@ -148,7 +148,7 @@ def main():
 
                 acc_value = torch.eq(y_pred.argmax(dim=1), y)
                 acc_metric = acc_value.sum().item() / len(acc_value)
-                auc_metric = compute_roc_auc(y_pred, y, to_onehot_y=True, softmax=True, average="weighted")
+                auc_metric = compute_roc_auc(y_pred, y, to_onehot_y=True, softmax=True) # TODO: average="weighted"
                 if acc_metric > best_metric:
                     best_metric = acc_metric
                     best_metric_epoch = epoch + 1
