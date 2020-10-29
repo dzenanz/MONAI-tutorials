@@ -3,6 +3,7 @@ import os
 import sys
 import math
 import json
+import random
 import numpy as np
 
 import torch
@@ -16,6 +17,7 @@ from sklearn.metrics import confusion_matrix, classification_report
 
 
 model_path = os.getcwd() + "/miqaIQM.pth"
+torch.manual_seed(1983)
 
 def main():
     # monai.config.print_config()
@@ -65,15 +67,11 @@ def main():
     # rest is based on
     # https://towardsdatascience.com/pytorch-tabular-binary-classification-a0368da5bb89
     
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=69)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=2300, shuffle=False)
 
     #scaler = StandardScaler()
     #X_train = scaler.fit_transform(X_train)
     #X_test = scaler.fit_transform(X_test)
-
-    EPOCHS = 50
-    BATCH_SIZE = 64
-    LEARNING_RATE = 0.001
 
     class trainData(Dataset):    
         def __init__(self, X_data, y_data):
@@ -98,7 +96,7 @@ def main():
 
     test_data = testData(torch.FloatTensor(X_test))
     train_data = trainData(torch.FloatTensor(X_train), torch.FloatTensor(y_train))
-    train_loader = DataLoader(dataset=train_data, batch_size=BATCH_SIZE, shuffle=True)
+    train_loader = DataLoader(dataset=train_data, batch_size=64, shuffle=True)
     test_loader = DataLoader(dataset=test_data, batch_size=1)
 
     class binaryClassification(nn.Module):
@@ -136,18 +134,18 @@ def main():
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print(device)
     model = binaryClassification()
-    if (os.path.exists(model_path)):
-        model.load_state_dict(torch.load(model_path))
-        print(f"Loaded NN model from file '{model_path}'")
-    else:
-        print("Training NN from scratch")
+    #if (os.path.exists(model_path)):
+    #    model.load_state_dict(torch.load(model_path))
+    #    print(f"Loaded NN model from file '{model_path}'")
+    #else:
+    #    print("Training NN from scratch")
     model.to(device)
     print(model)
     criterion = nn.BCEWithLogitsLoss()
-    optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
 
     model.train()
-    for e in range(1, EPOCHS+1):
+    for e in range(0, 10):
         epoch_loss = 0
         epoch_acc = 0
         for X_batch, y_batch in train_loader:
@@ -182,7 +180,8 @@ def main():
     
     y_pred_list = [a.squeeze().tolist() for a in y_pred_list]
 
-    confusion_matrix(y_test, y_pred_list)
+    print("confusion_matrix:")
+    print(confusion_matrix(y_test, y_pred_list))
     print(classification_report(y_test, y_pred_list))
 
 if __name__ == "__main__":
