@@ -1,6 +1,7 @@
 import logging
 import os
 import sys
+import math
 import json
 import numpy as np
 
@@ -32,18 +33,28 @@ def main():
                 print("zero at index", decLen)
             path = os.getcwd() + "/SRI_Sessions/scanroot" + data['data_root'] + s['path'] + "/"            
             for k, v in s['volumes'].items():
-                filenames.append(path + k + ".nii.gz")
-                decisions.append(decision)
                 del v['warnings']
                 del v['output']
                 del v['Patient']
                 v['VRX'] = float(v['VRX'])
                 v['VRY'] = float(v['VRY'])
                 v['VRZ'] = float(v['VRZ'])
-                features.append(list(v.values()))
 
-    print(decisions)
-    print("image count:", len(features))
+                vl = list(v.values())
+                allFinite = True
+                for fv in vl:
+                    if (not math.isfinite(fv)):
+                        allFinite = False
+
+                if (allFinite):
+                    filenames.append(path + k + ".nii.gz")
+                    decisions.append(decision)
+                    features.append(vl)
+                else:
+                    print("Non-finite value encountered, timestep skipped")
+
+    # print(decisions)
+    print("timepoint count:", len(features))
 
     # 2 binary labels for scan classification: 1=good, 0=bad
     y = np.asarray(decisions, dtype=np.int64)
@@ -56,9 +67,9 @@ def main():
     
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=69)
 
-    scaler = StandardScaler()
-    X_train = scaler.fit_transform(X_train)
-    X_test = scaler.fit_transform(X_test)
+    #scaler = StandardScaler()
+    #X_train = scaler.fit_transform(X_train)
+    #X_test = scaler.fit_transform(X_test)
 
     EPOCHS = 50
     BATCH_SIZE = 64
