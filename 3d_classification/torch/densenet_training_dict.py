@@ -13,6 +13,7 @@
 import logging
 import os
 import sys
+from pathlib import Path
 
 import json
 
@@ -27,31 +28,30 @@ from monai.transforms import AddChanneld, Compose, LoadNiftid, RandRotated, Resi
 
 model_path = os.getcwd() + "/miqa01.pth"
 
+def recursivelySearchImages(images, decisions, pathPrefix, kind):
+    count = 0
+    for path in Path(pathPrefix).rglob('*.nii.gz'):
+        images.append(str(path))
+        decisions.append(kind)
+        count += 1
+    print(f"{count} images in prefix {pathPrefix}")
+
 def main():
     monai.config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 
     images = []
     decisions = []
-    with open('SRI_Sessions/session_ann_pretty.json') as json_file:
-        data = json.load(json_file)
-        for s in data['scans']:
-            decision = int(s['decision'])
-            decLen = len(decisions)
-            if (decLen>1 and decisions[decLen-1]==1 and decision==0):
-                print("zero at index", decLen)
-            path = os.getcwd()+"/SRI_Sessions/scanroot"+data['data_root']+s['path']+"/"            
-            filenames = sorted(s['volumes'].keys())
-            for f in filenames:
-                images.append(path+f+".nii.gz")
-                decisions.append(decision)
-
-    print("image count:", len(images))
-    print(decisions)
+    recursivelySearchImages(images, decisions, os.getcwd()+'/NCANDA/unusable', 0)
+    recursivelySearchImages(images, decisions, os.getcwd()+'/NCANDA/v01', 1)
+    recursivelySearchImages(images, decisions, os.getcwd()+'/NCANDA/v03', 1)
+    recursivelySearchImages(images, decisions, os.getcwd()+'/NCANDA/sri1', 1)
+    recursivelySearchImages(images, decisions, os.getcwd()+'/NCANDA/sri0', 0)
+    print(f"{len(images)} images total in NCANDA")
 
     # 2 binary labels for scan classification: 1=good, 0=bad
     labels = np.asarray(decisions, dtype=np.int64)
-    countTrain = 2300
+    countTrain = 3229 # NCANDA is training group, SRI is validation group
     train_files = [{"img": img, "label": label} for img, label in zip(images[:countTrain], labels[:countTrain])]
     val_files = [{"img": img, "label": label} for img, label in zip(images[-countTrain:], labels[-countTrain:])]
 
@@ -78,17 +78,17 @@ def main():
 
     # Define dataset, data loader
     check_ds = monai.data.Dataset(data=train_files, transform=train_transforms)
-    check_loader = DataLoader(check_ds, batch_size=4, num_workers=4, pin_memory=torch.cuda.is_available())
+    check_loader = DataLoader(check_ds, batch_size=1, num_workers=4, pin_memory=torch.cuda.is_available())
     check_data = monai.utils.misc.first(check_loader)
     print(check_data["img"].shape, check_data["label"])
 
     # create a training data loader
     train_ds = monai.data.Dataset(data=train_files, transform=train_transforms)
-    train_loader = DataLoader(train_ds, batch_size=4, shuffle=True, num_workers=4, pin_memory=torch.cuda.is_available())
+    train_loader = DataLoader(train_ds, batch_size=1, shuffle=True, num_workers=4, pin_memory=torch.cuda.is_available())
 
     # create a validation data loader
     val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
-    val_loader = DataLoader(val_ds, batch_size=4, num_workers=4, pin_memory=torch.cuda.is_available())
+    val_loader = DataLoader(val_ds, batch_size=1, num_workers=4, pin_memory=torch.cuda.is_available())
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -96,7 +96,7 @@ def main():
     goodCount = np.sum(labels[:countTrain])
     badCount = countTrain - goodCount
     weightsArray = [goodCount/countTrain, badCount/countTrain]
-    print(f"goodCount: {goodCount}, badCount: {badCount}, weightsArray: {weightsArray}")
+    print(f"badCount: {badCount}, goodCount: {goodCount}, weightsArray: {weightsArray}")
     classWeights = torch.tensor(weightsArray, dtype=torch.float).to(device)
 
     # Create DenseNet121, CrossEntropyLoss and Adam optimizer
