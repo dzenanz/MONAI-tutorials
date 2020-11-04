@@ -1,0 +1,97 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" DefaultTargets="Build">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{49291631-f064-4a02-a0a1-d8e6b97f2641}</ProjectGuid>
+    <ProjectHome />
+    <StartupFile>3d_classification\torch\densenet_training_dict.py</StartupFile>
+    <SearchPath />
+    <WorkingDirectory>..</WorkingDirectory>
+    <OutputPath>.</OutputPath>
+    <ProjectTypeGuids>{888888a0-9f3d-457c-b088-3a5042f75d52}</ProjectTypeGuids>
+    <LaunchProvider>Standard Python launcher</LaunchProvider>
+    <InterpreterId>Global|PythonCore|3.7</InterpreterId>
+    <IsWindowsApplication>False</IsWindowsApplication>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'" />
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'" />
+  <PropertyGroup>
+    <VisualStudioVersion Condition=" '$(VisualStudioVersion)' == '' ">10.0</VisualStudioVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="2d_segmentation\torch\unet_evaluation_array.py" />
+    <Compile Include="2d_segmentation\torch\unet_evaluation_dict.py" />
+    <Compile Include="2d_segmentation\torch\unet_training_array.py" />
+    <Compile Include="2d_segmentation\torch\unet_training_dict.py" />
+    <Compile Include="3d_classification\ignite\densenet_evaluation_array.py" />
+    <Compile Include="3d_classification\ignite\densenet_evaluation_dict.py" />
+    <Compile Include="3d_classification\ignite\densenet_training_array.py" />
+    <Compile Include="3d_classification\ignite\densenet_training_dict.py" />
+    <Compile Include="3d_classification\torch\densenet_evaluation_array.py" />
+    <Compile Include="3d_classification\torch\densenet_evaluation_dict.py" />
+    <Compile Include="3d_classification\torch\densenet_training_array.py" />
+    <Compile Include="3d_classification\torch\densenet_training_dict.py" />
+    <Compile Include="3d_segmentation\ignite\unet_evaluation_array.py" />
+    <Compile Include="3d_segmentation\ignite\unet_evaluation_dict.py" />
+    <Compile Include="3d_segmentation\ignite\unet_training_array.py" />
+    <Compile Include="3d_segmentation\ignite\unet_training_dict.py" />
+    <Compile Include="3d_segmentation\torch\unet_evaluation_array.py" />
+    <Compile Include="3d_segmentation\torch\unet_evaluation_dict.py" />
+    <Compile Include="3d_segmentation\torch\unet_training_array.py" />
+    <Compile Include="3d_segmentation\torch\unet_training_dict.py" />
+    <Compile Include="acceleration\distributed_training\brats_training_ddp.py" />
+    <Compile Include="acceleration\distributed_training\unet_evaluation_ddp.py" />
+    <Compile Include="acceleration\distributed_training\unet_evaluation_horovod.py" />
+    <Compile Include="acceleration\distributed_training\unet_evaluation_workflows.py" />
+    <Compile Include="acceleration\distributed_training\unet_training_ddp.py" />
+    <Compile Include="acceleration\distributed_training\unet_training_horovod.py" />
+    <Compile Include="acceleration\distributed_training\unet_training_smartcache.py" />
+    <Compile Include="acceleration\distributed_training\unet_training_workflows.py" />
+    <Compile Include="directClassification\directClassification.py" />
+    <Compile Include="federated_learning\substra\assets\algo\algo.py" />
+    <Compile Include="federated_learning\substra\assets\objective\metrics.py" />
+    <Compile Include="federated_learning\substra\assets\test_dataset\opener.py" />
+    <Compile Include="federated_learning\substra\assets\train_dataset\opener.py" />
+    <Compile Include="federated_learning\substra\scripts\generate_data_samples.py" />
+    <Compile Include="federated_learning\substra\scripts\run_in_substra.py" />
+    <Compile Include="modules\engines\gan_evaluation.py" />
+    <Compile Include="modules\engines\gan_training.py" />
+    <Compile Include="modules\engines\unet_evaluation_dict.py" />
+    <Compile Include="modules\engines\unet_training_dict.py" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="federated_learning\substra\requirements.txt" />
+    <Content Include="figures\brats_tasks.png" />
+    <Content Include="figures\models_ensemble.png" />
+    <Content Include="figures\multi_transform_chains.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="2d_segmentation\" />
+    <Folder Include="2d_segmentation\torch" />
+    <Folder Include="3d_classification\" />
+    <Folder Include="3d_classification\ignite" />
+    <Folder Include="3d_classification\torch" />
+    <Folder Include="3d_segmentation\" />
+    <Folder Include="3d_segmentation\ignite" />
+    <Folder Include="3d_segmentation\torch" />
+    <Folder Include="acceleration\" />
+    <Folder Include="acceleration\distributed_training" />
+    <Folder Include="directClassification" />
+    <Folder Include="federated_learning\" />
+    <Folder Include="federated_learning\substra" />
+    <Folder Include="federated_learning\substra\assets\" />
+    <Folder Include="federated_learning\substra\assets\algo" />
+    <Folder Include="federated_learning\substra\assets\objective" />
+    <Folder Include="federated_learning\substra\assets\test_dataset" />
+    <Folder Include="federated_learning\substra\assets\train_dataset" />
+    <Folder Include="federated_learning\substra\scripts" />
+    <Folder Include="figures" />
+    <Folder Include="modules\" />
+    <Folder Include="modules\engines" />
+  </ItemGroup>
+  <ItemGroup>
+    <InterpreterReference Include="Global|PythonCore|3.7" />
+  </ItemGroup>
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
+</Project>

@@ -1,0 +1,23 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30621.155
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "MONAI-tutorials", "MONAI-tutorials.pyproj", "{49291631-F064-4A02-A0A1-D8E6B97F2641}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{49291631-F064-4A02-A0A1-D8E6B97F2641}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{49291631-F064-4A02-A0A1-D8E6B97F2641}.Release|Any CPU.ActiveCfg = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {25C3F339-267E-4648-8133-37B18D55AB1A}
+	EndGlobalSection
+EndGlobal
