@@ -22,11 +22,24 @@ import torch
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
+import itkConfig
+itkConfig.LazyLoading = False
+import itk
+
 import monai
 from monai.metrics import compute_roc_auc
 from monai.transforms import AddChanneld, Compose, LoadNiftid, RandRotated, Resized, ScaleIntensityd, ToTensord
 
 model_path = os.getcwd() + "/miqa01.pth"
+
+def getImageDimension(path):
+    imageIO = itk.ImageIOFactory.CreateImageIO( path, itk.CommonEnums.IOFileMode_ReadMode )
+    if not imageIO:
+        raise RuntimeError(f"No ImageIO is registered to handle {path}")
+    imageIO.SetFileName( path )
+    imageIO.ReadImageInformation()
+    dimension = imageIO.GetNumberOfDimensions()
+    return dimension
 
 def recursivelySearchImages(images, decisions, pathPrefix, kind):
     count = 0
@@ -49,11 +62,19 @@ def main():
     recursivelySearchImages(images, decisions, os.getcwd()+'/NCANDA/sri0', 0)
     print(f"{len(images)} images total in NCANDA")
 
+    # check image dimensionality and size distribution
+    imDim = getImageDimension(images[0])
+    for img in images:
+        if (getImageDimension(img)!=imDim):
+            print(images[0], ":", getImageDimension(images[0]))
+
     # 2 binary labels for scan classification: 1=good, 0=bad
     labels = np.asarray(decisions, dtype=np.int64)
     countTrain = 3229 # NCANDA is training group, SRI is validation group
     train_files = [{"img": img, "label": label} for img, label in zip(images[:countTrain], labels[:countTrain])]
     val_files = [{"img": img, "label": label} for img, label in zip(images[-countTrain:], labels[-countTrain:])]
+
+    # TODO: shuffle train_files
 
     # Define transforms for image
     train_transforms = Compose(
@@ -78,17 +99,17 @@ def main():
 
     # Define dataset, data loader
     check_ds = monai.data.Dataset(data=train_files, transform=train_transforms)
-    check_loader = DataLoader(check_ds, batch_size=1, num_workers=4, pin_memory=torch.cuda.is_available())
+    check_loader = DataLoader(check_ds, batch_size=1, num_workers=2, pin_memory=torch.cuda.is_available())
     check_data = monai.utils.misc.first(check_loader)
     print(check_data["img"].shape, check_data["label"])
 
     # create a training data loader
     train_ds = monai.data.Dataset(data=train_files, transform=train_transforms)
-    train_loader = DataLoader(train_ds, batch_size=1, shuffle=True, num_workers=4, pin_memory=torch.cuda.is_available())
+    train_loader = DataLoader(train_ds, batch_size=1, shuffle=True, num_workers=2, pin_memory=torch.cuda.is_available())
 
     # create a validation data loader
     val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
-    val_loader = DataLoader(val_ds, batch_size=1, num_workers=4, pin_memory=torch.cuda.is_available())
+    val_loader = DataLoader(val_ds, batch_size=1, num_workers=2, pin_memory=torch.cuda.is_available())
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
