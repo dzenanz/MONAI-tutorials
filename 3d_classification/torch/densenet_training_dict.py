@@ -38,8 +38,9 @@ def getImageDimension(path):
         raise RuntimeError(f"No ImageIO is registered to handle {path}")
     imageIO.SetFileName( path )
     imageIO.ReadImageInformation()
-    dimension = imageIO.GetNumberOfDimensions()
-    return dimension
+    assert imageIO.GetNumberOfDimensions() == 3
+    dim = (imageIO.GetDimensions(0), imageIO.GetDimensions(1), imageIO.GetDimensions(2))
+    return dim
 
 def recursivelySearchImages(images, decisions, pathPrefix, kind):
     count = 0
@@ -62,19 +63,15 @@ def main():
     recursivelySearchImages(images, decisions, os.getcwd()+'/NCANDA/sri0', 0)
     print(f"{len(images)} images total in NCANDA")
 
-    # check image dimensionality and size distribution
-    allSame = True
-    imDim = getImageDimension(images[0])
+    # check image size distribution
+    sizes = {}
     for img in images:
-        if (getImageDimension(img)!=imDim):
-            allSame = False
-            print(images[0], ":", getImageDimension(images[0]))
-
-    if (allSame):
-        print(f"All the images are of the same dimension ({imDim})")
-    else:
-        print("Images are of different dimensions")
-        return
+        size = getImageDimension(img)
+        if not size in sizes:
+            sizes[size] = 1
+        else:
+            sizes[size] += 1
+    print("Image size distribution:\n", sizes)
 
     # 2 binary labels for scan classification: 1=good, 0=bad
     labels = np.asarray(decisions, dtype=np.int64)
