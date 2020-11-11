@@ -63,10 +63,18 @@ def main():
     print(f"{len(images)} images total in NCANDA")
 
     # check image dimensionality and size distribution
+    allSame = True
     imDim = getImageDimension(images[0])
     for img in images:
         if (getImageDimension(img)!=imDim):
+            allSame = False
             print(images[0], ":", getImageDimension(images[0]))
+
+    if (allSame):
+        print(f"All the images are of the same dimension ({imDim})")
+    else:
+        print("Images are of different dimensions")
+        return
 
     # 2 binary labels for scan classification: 1=good, 0=bad
     labels = np.asarray(decisions, dtype=np.int64)
