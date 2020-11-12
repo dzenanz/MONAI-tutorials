@@ -22,7 +22,7 @@ from torch.utils.data import DataLoader
 
 import monai
 from monai.data import CSVSaver
-from monai.transforms import AddChanneld, Compose, LoadNiftid, Resized, ScaleIntensityd, ToTensord
+from monai.transforms import AddChanneld, Compose, LoadImaged, Resized, ScaleIntensityd, ToTensord
 
 from sklearn.metrics import confusion_matrix, classification_report
 
@@ -59,7 +59,7 @@ def main():
     # Define transforms for image
     val_transforms = Compose(
         [
-            LoadNiftid(keys=["img"]),
+            LoadImaged(keys=["img"]),
             AddChanneld(keys=["img"]),
             ScaleIntensityd(keys=["img"]),
             Resized(keys=["img"], spatial_size=(96, 96, 96)),
