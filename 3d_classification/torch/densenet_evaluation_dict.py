@@ -12,6 +12,7 @@
 import logging
 import os
 import sys
+from pathlib import Path
 
 import json
 
@@ -23,7 +24,17 @@ import monai
 from monai.data import CSVSaver
 from monai.transforms import AddChanneld, Compose, LoadNiftid, Resized, ScaleIntensityd, ToTensord
 
+from sklearn.metrics import confusion_matrix, classification_report
+
 model_path = os.getcwd() + "/miqa01.pth"
+
+def recursivelySearchImages(images, decisions, pathPrefix, kind):
+    count = 0
+    for path in Path(pathPrefix).rglob('*.nii.gz'):
+        images.append(str(path))
+        decisions.append(kind)
+        count += 1
+    print(f"{count} images in prefix {pathPrefix}")
 
 def main():
     monai.config.print_config()
@@ -31,26 +42,19 @@ def main():
 
     images = []
     decisions = []
-    with open('SRI_Sessions/session_ann_pretty.json') as json_file:
-        data = json.load(json_file)
-        for s in data['scans']:
-            decision = int(s['decision'])
-            decLen = len(decisions)
-            if (decLen>1 and decisions[decLen-1]==1 and decision==0):
-                print("zero at index", decLen)
-            path = os.getcwd()+"/SRI_Sessions/scanroot"+data['data_root']+s['path']+"/"            
-            filenames = sorted(s['volumes'].keys())
-            for f in filenames:
-                images.append(path+f+".nii.gz")
-                decisions.append(decision)
-
-    print("image count:", len(images))
-    print(decisions)
+    recursivelySearchImages(images, decisions, os.getcwd()+'/NCANDA/unusable', 0)
+    recursivelySearchImages(images, decisions, os.getcwd()+'/NCANDA/v01', 1)
+    recursivelySearchImages(images, decisions, os.getcwd()+'/NCANDA/v03', 1)
+    recursivelySearchImages(images, decisions, os.getcwd()+'/NCANDA/sri1', 1)
+    recursivelySearchImages(images, decisions, os.getcwd()+'/NCANDA/sri0', 0)
+    print(f"{len(images)} images total in NCANDA")
 
     # 2 binary labels for scan classification: 1=good, 0=bad
     labels = np.asarray(decisions, dtype=np.int64)
-    train_files = [{"img": img, "label": label} for img, label in zip(images[:500], labels[:500])]
-    val_files = [{"img": img, "label": label} for img, label in zip(images[-500:], labels[-500:])]
+    countTrain = 3229 # NCANDA is training group, SRI is validation group
+    train_files = [{"img": img, "label": label} for img, label in zip(images[:countTrain], labels[:countTrain])]
+    val_files = [{"img": img, "label": label} for img, label in zip(images[-countTrain:], labels[-countTrain:])]
+    # val_files = [{"img": img, "label": label} for img, label in zip(images[-50:], labels[-50:])] # debugging
 
     # Define transforms for image
     val_transforms = Compose(
@@ -67,12 +71,15 @@ def main():
     val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
     val_loader = DataLoader(val_ds, batch_size=2, num_workers=4, pin_memory=torch.cuda.is_available())
 
-    # Create DenseNet121
+    print("Loading DenseNet121 classification model")
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = monai.networks.nets.densenet.densenet121(spatial_dims=3, in_channels=1, out_channels=2).to(device)
-
     model.load_state_dict(torch.load(model_path))
-    model.eval()
+
+    print("Starting evaluation")
+    countVal = len(val_files)
+    y_pred = []
+    y_true = []
     with torch.no_grad():
         num_correct = 0.0
         metric_count = 0
@@ -80,14 +87,22 @@ def main():
         for val_data in val_loader:
             val_images, val_labels = val_data["img"].to(device), val_data["label"].to(device)
             val_outputs = model(val_images).argmax(dim=1)
+
+            y_true.extend(val_data["label"].tolist())
+            y_pred.extend(val_outputs.cpu().tolist())
+
             value = torch.eq(val_outputs, val_labels)
             metric_count += len(value)
             num_correct += value.sum().item()
             saver.save_batch(val_outputs, val_data["img_meta_dict"])
+            print(f"Evaluated {metric_count}/{countVal}")
         metric = num_correct / metric_count
         print("evaluation metric:", metric)
         saver.finalize()
 
+    print("confusion_matrix:")
+    print(confusion_matrix(y_true, y_pred))
+    print(classification_report(y_true, y_pred))
 
 if __name__ == "__main__":
     main()
