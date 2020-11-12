@@ -59,8 +59,10 @@ def main():
     recursivelySearchImages(images, decisions, os.getcwd()+'/NCANDA/unusable', 0)
     recursivelySearchImages(images, decisions, os.getcwd()+'/NCANDA/v01', 1)
     recursivelySearchImages(images, decisions, os.getcwd()+'/NCANDA/v03', 1)
+    countTrain = len(images) # NCANDA is training group
     recursivelySearchImages(images, decisions, os.getcwd()+'/NCANDA/sri1', 1)
     recursivelySearchImages(images, decisions, os.getcwd()+'/NCANDA/sri0', 0)
+    countVal = len(images) - countTrain # SRI is validation group
     print(f"{len(images)} images total in NCANDA")
 
     # check image size distribution
@@ -75,9 +77,8 @@ def main():
 
     # 2 binary labels for scan classification: 1=good, 0=bad
     labels = np.asarray(decisions, dtype=np.int64)
-    countTrain = 3229 # NCANDA is training group, SRI is validation group
     train_files = [{"img": img, "label": label} for img, label in zip(images[:countTrain], labels[:countTrain])]
-    val_files = [{"img": img, "label": label} for img, label in zip(images[-countTrain:], labels[-countTrain:])]
+    val_files = [{"img": img, "label": label} for img, label in zip(images[-countVal:], labels[-countVal:])]
 
     # TODO: shuffle train_files
 
