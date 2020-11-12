@@ -138,7 +138,7 @@ def main():
 
     # start a typical PyTorch training
     num_epochs = 8
-    val_interval = 1
+    val_interval = 2
     best_metric = -1
     best_metric_epoch = -1
     writer = SummaryWriter()
@@ -176,17 +176,18 @@ def main():
                 acc_value = torch.eq(y_pred.argmax(dim=1), y)
                 acc_metric = acc_value.sum().item() / len(acc_value)
                 auc_metric = compute_roc_auc(y_pred, y, to_onehot_y=True, softmax=True) # TODO: average="weighted"
-                if acc_metric > best_metric:
-                    best_metric = acc_metric
+                if auc_metric > best_metric:
+                    best_metric = auc_metric
                     best_metric_epoch = epoch + 1
                     torch.save(model.state_dict(), model_path)
                     print("saved new best metric model")
                 print(
-                    "current epoch: {} current accuracy: {:.4f} current AUC: {:.4f} best accuracy: {:.4f} at epoch {}".format(
+                    "current epoch: {} current accuracy: {:.4f} current AUC: {:.4f} best AUC: {:.4f} at epoch {}".format(
                         epoch + 1, acc_metric, auc_metric, best_metric, best_metric_epoch
                     )
                 )
                 writer.add_scalar("val_accuracy", acc_metric, epoch + 1)
+                writer.add_scalar("val_AUC", auc_metric, epoch + 1)
     print(f"train completed, best_metric: {best_metric:.4f} at epoch: {best_metric_epoch}")
     writer.close()
 
