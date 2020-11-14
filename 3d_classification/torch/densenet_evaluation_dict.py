@@ -36,6 +36,7 @@ def recursivelySearchImages(images, decisions, pathPrefix, kind):
         count += 1
     print(f"{count} images in prefix {pathPrefix}")
 
+
 def main():
     monai.config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -94,7 +95,8 @@ def main():
             metric_count += len(value)
             num_correct += value.sum().item()
             saver.save_batch(val_outputs, val_data["img_meta_dict"])
-            print(f"Evaluated {metric_count}/{countVal}")
+            if metric_count % 20 == 0:
+                print(f"Evaluated {metric_count}/{countVal}")
         metric = num_correct / metric_count
         print("evaluation metric:", metric)
         saver.finalize()
@@ -102,6 +104,7 @@ def main():
     print("confusion_matrix:")
     print(confusion_matrix(y_true, y_pred))
     print(classification_report(y_true, y_pred))
+
 
 if __name__ == "__main__":
     main()
