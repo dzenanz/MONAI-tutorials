@@ -30,6 +30,8 @@ import monai
 from monai.metrics import compute_roc_auc
 from monai.transforms import AddChanneld, Compose, LoadImaged, RandRotated, Resized, ScaleIntensityd, ToTensord
 
+from sklearn.metrics import confusion_matrix, classification_report
+
 model_path = os.getcwd() + "/miqa01.pth"
 
 def getImageDimension(path):
@@ -137,8 +139,8 @@ def main():
     optimizer = torch.optim.Adam(model.parameters(), 1e-5)
 
     # start a typical PyTorch training
-    num_epochs = 8
-    val_interval = 2
+    num_epochs = 20
+    val_interval = 4
     best_metric = -1
     best_metric_epoch = -1
     writer = SummaryWriter()
@@ -164,18 +166,32 @@ def main():
         print(f"epoch {epoch + 1} average loss: {epoch_loss:.4f}")
 
         if (epoch + 1) % val_interval == 0:
+            print("Starting evaluation")
             model.eval()
+            y_pred = []
+            y_true = []
             with torch.no_grad():
-                y_pred = torch.tensor([], dtype=torch.float32, device=device)
-                y = torch.tensor([], dtype=torch.long, device=device)
+                num_correct = 0.0
+                metric_count = 0
                 for val_data in val_loader:
                     val_images, val_labels = val_data["img"].to(device), val_data["label"].to(device)
-                    y_pred = torch.cat([y_pred, model(val_images)], dim=0)
-                    y = torch.cat([y, val_labels], dim=0)
+                    val_outputs = model(val_images).argmax(dim=1)
 
-                acc_value = torch.eq(y_pred.argmax(dim=1), y)
-                acc_metric = acc_value.sum().item() / len(acc_value)
-                auc_metric = compute_roc_auc(y_pred, y, to_onehot_y=True, softmax=True) # TODO: average="weighted"
+                    y_true.extend(val_labels.cpu().tolist())
+                    y_pred.extend(val_outputs.cpu().tolist())
+
+                    num_correct += val_outputs.sum().item()
+                    metric_count += len(val_outputs)
+                    if metric_count % 20 == 0:
+                        print(f"Evaluated {metric_count}/{countVal}")
+
+                print("confusion_matrix:")
+                print(confusion_matrix(y_true, y_pred))
+                print(classification_report(y_true, y_pred))
+
+                acc_metric = num_correct / metric_count
+                auc_metric = compute_roc_auc(torch.as_tensor(y_pred), torch.as_tensor(y_true),
+                                             average=monai.utils.Average.WEIGHTED)
                 if auc_metric > best_metric:
                     best_metric = auc_metric
                     best_metric_epoch = epoch + 1
@@ -188,6 +204,8 @@ def main():
                 )
                 writer.add_scalar("val_accuracy", acc_metric, epoch + 1)
                 writer.add_scalar("val_AUC", auc_metric, epoch + 1)
+
+
     print(f"train completed, best_metric: {best_metric:.4f} at epoch: {best_metric_epoch}")
     writer.close()
 
