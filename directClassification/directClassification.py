@@ -19,35 +19,48 @@ from sklearn.metrics import confusion_matrix, classification_report
 model_path = os.getcwd() + "/miqaIQM.pth"
 torch.manual_seed(1983)
 
+def processIQMs(iqm, features, decisions, filenames, decision, filename):
+    del iqm['warnings']
+    del iqm['output']
+    del iqm['Patient']
+    iqm['VRX'] = float(iqm['VRX'])
+    iqm['VRY'] = float(iqm['VRY'])
+    iqm['VRZ'] = float(iqm['VRZ'])
+
+    vl = list(iqm.values())
+    allFinite = True
+    for fv in vl:
+        if (not math.isfinite(fv)):
+            allFinite = False
+
+    if (allFinite):
+        filenames.append(filename)
+        decisions.append(decision)
+        features.append(vl)
+    else:
+        print("Non-finite value encountered, timestep skipped")
+
 def parseJSON(jsonFile, scanroot, features, decisions, filenames):
     with open(jsonFile) as json_file:
         data = json.load(json_file)
         for s in data['scans']:
-            decision = int(s['decision'])
+            if s['site_id'] == "unusable":
+                decision = 0
+            elif s['site_id'] in ("v01_cases", "v03_cases"):
+                decision = 1
+            else: # SRISessions has 0/1 in decision key
+                decision = int(s['decision'])
             decLen = len(decisions)
-            if (decLen > 1 and decisions[decLen - 1] == 1 and decision == 0):
+            if decLen > 1 and decisions[decLen - 1] == 1 and decision == 0:
                 print("zero at index", decLen)
             path = scanroot + data['data_root'] + s['path'] + "/"
-            for k, v in s['volumes'].items():
-                del v['warnings']
-                del v['output']
-                del v['Patient']
-                v['VRX'] = float(v['VRX'])
-                v['VRY'] = float(v['VRY'])
-                v['VRZ'] = float(v['VRZ'])
 
-                vl = list(v.values())
-                allFinite = True
-                for fv in vl:
-                    if (not math.isfinite(fv)):
-                        allFinite = False
+            if 'volumes' in s.keys(): # SRISessions
+                for k, v in s['volumes'].items():
+                    processIQMs(v, features, decisions, filenames, decision, path + k + ".nii.gz")
+            else: # NCANDA
+                processIQMs(s['quality'], features, decisions, filenames, decision, path)
 
-                if (allFinite):
-                    filenames.append(path + k + ".nii.gz")
-                    decisions.append(decision)
-                    features.append(vl)
-                else:
-                    print("Non-finite value encountered, timestep skipped")
 
 def main():
     # monai.config.print_config()
@@ -56,12 +69,16 @@ def main():
     filenames = []
     features = []
     decisions = []
+    parseJSON(os.getcwd() + '/ncanda_not_public_scans.json',
+              os.getcwd(),
+              features, decisions, filenames)
+    ncanda_count = len(features)
+    print("NCANDA count:", ncanda_count)
     parseJSON(os.getcwd() + '/SRI_Sessions/session_ann_pretty.json',
               os.getcwd() + "/SRI_Sessions/scanroot",
               features, decisions, filenames)
-
-    # print(decisions)
-    print("timepoint count:", len(features))
+    print("SRISessions count:", len(features)-ncanda_count)
+    print(f"bad/total: {decisions.count(0)}/{len(features)}")
 
     # 2 binary labels for scan classification: 1=good, 0=bad
     y = np.asarray(decisions, dtype=np.int64)
@@ -72,7 +89,7 @@ def main():
     # rest is based on
     # https://towardsdatascience.com/pytorch-tabular-binary-classification-a0368da5bb89
     
-    X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=2300, shuffle=False)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=ncanda_count, shuffle=False)
 
     #scaler = StandardScaler()
     #X_train = scaler.fit_transform(X_train)
