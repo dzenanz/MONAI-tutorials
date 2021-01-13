@@ -19,21 +19,15 @@ from sklearn.metrics import confusion_matrix, classification_report
 model_path = os.getcwd() + "/miqaIQM.pth"
 torch.manual_seed(1983)
 
-def main():
-    # monai.config.print_config()
-    logging.basicConfig(stream=sys.stdout, level=logging.INFO)
-
-    filenames = []
-    features = []
-    decisions = []
-    with open('SRI_Sessions/session_ann_pretty.json') as json_file:
+def parseJSON(jsonFile, scanroot, features, decisions, filenames):
+    with open(jsonFile) as json_file:
         data = json.load(json_file)
         for s in data['scans']:
             decision = int(s['decision'])
             decLen = len(decisions)
             if (decLen > 1 and decisions[decLen - 1] == 1 and decision == 0):
                 print("zero at index", decLen)
-            path = os.getcwd() + "/SRI_Sessions/scanroot" + data['data_root'] + s['path'] + "/"            
+            path = scanroot + data['data_root'] + s['path'] + "/"
             for k, v in s['volumes'].items():
                 del v['warnings']
                 del v['output']
@@ -54,6 +48,17 @@ def main():
                     features.append(vl)
                 else:
                     print("Non-finite value encountered, timestep skipped")
+
+def main():
+    # monai.config.print_config()
+    logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+
+    filenames = []
+    features = []
+    decisions = []
+    parseJSON(os.getcwd() + '/SRI_Sessions/session_ann_pretty.json',
+              os.getcwd() + "/SRI_Sessions/scanroot",
+              features, decisions, filenames)
 
     # print(decisions)
     print("timepoint count:", len(features))
