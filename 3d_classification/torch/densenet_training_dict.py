@@ -26,6 +26,8 @@ import itkConfig
 itkConfig.LazyLoading = False
 import itk
 
+import wandb
+
 import monai
 from monai.metrics import compute_roc_auc
 from monai.transforms import AddChanneld, Compose, LoadImaged, RandRotated, Resized, ScaleIntensityd, ToTensord
@@ -55,6 +57,8 @@ def recursivelySearchImages(images, decisions, pathPrefix, kind):
 def main():
     monai.config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+    wandb.init(project="MIQA_01")
+    config = wandb.config
 
     images = []
     decisions = []
@@ -135,8 +139,11 @@ def main():
         print(f"Loaded NN model from file '{model_path}'")
     else:
         print("Training NN from scratch")
+
     loss_function = torch.nn.CrossEntropyLoss(weight=classWeights)
     optimizer = torch.optim.Adam(model.parameters(), 1e-5)
+    config.learning_rate = 1e-5
+    wandb.watch(model)
 
     # start a typical PyTorch training
     num_epochs = 20
@@ -162,8 +169,10 @@ def main():
             epoch_len = len(train_ds) // train_loader.batch_size
             print(f"{step}/{epoch_len}, train_loss: {loss.item():.4f}")
             writer.add_scalar("train_loss", loss.item(), epoch_len * epoch + step)
+            wandb.log({"train_loss": loss.item()})
         epoch_loss /= step
         print(f"epoch {epoch + 1} average loss: {epoch_loss:.4f}")
+        wandb.log({f"epoch average loss": epoch_loss})
 
         if (epoch + 1) % val_interval == 0:
             print("Starting evaluation")
@@ -196,6 +205,7 @@ def main():
                     best_metric = auc_metric
                     best_metric_epoch = epoch + 1
                     torch.save(model.state_dict(), model_path)
+                    torch.save(model.state_dict(), os.path.join(wandb.run.dir, 'miqa01.pt'))
                     print("saved new best metric model")
                 print(
                     "current epoch: {} current accuracy: {:.4f} current AUC: {:.4f} best AUC: {:.4f} at epoch {}".format(
@@ -204,6 +214,8 @@ def main():
                 )
                 writer.add_scalar("val_accuracy", acc_metric, epoch + 1)
                 writer.add_scalar("val_AUC", auc_metric, epoch + 1)
+                wandb.log({"val_accuracy": acc_metric})
+                wandb.log({"val_AUC": auc_metric})
 
 
     print(f"train completed, best_metric: {best_metric:.4f} at epoch: {best_metric_epoch}")
