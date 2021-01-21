@@ -57,7 +57,7 @@ def recursivelySearchImages(images, decisions, pathPrefix, kind):
 def main():
     monai.config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
-    wandb.init(project="MIQA_01")
+    wandb.init(project="miqa_01", sync_tensorboard=True)
     config = wandb.config
 
     images = []
@@ -150,7 +150,7 @@ def main():
     val_interval = 4
     best_metric = -1
     best_metric_epoch = -1
-    writer = SummaryWriter()
+    writer = SummaryWriter(log_dir=wandb.run.dir)
     for epoch in range(num_epochs):
         print("-" * 10)
         print(f"epoch {epoch + 1}/{num_epochs}")
