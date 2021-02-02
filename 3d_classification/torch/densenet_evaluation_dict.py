@@ -63,7 +63,7 @@ def doesFileExist(fileName):
         eCount += 1
         return True
     else:
-        print(f"Missing: {fileName}")
+        # print(f"Missing: {fileName}")
         nCount += 1
         return False
 
