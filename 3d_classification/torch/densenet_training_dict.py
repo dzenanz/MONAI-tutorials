@@ -16,6 +16,7 @@ import sys
 from pathlib import Path
 
 import json
+import pandas as pd
 
 import numpy as np
 import torch
@@ -35,6 +36,8 @@ from monai.transforms import AddChanneld, Compose, LoadImaged, RandRotated, Resi
 from sklearn.metrics import confusion_matrix, classification_report
 
 model_path = os.getcwd() + "/miqa01.pth"
+eCount = 0
+nCount = 0
 
 def getImageDimension(path):
     imageIO = itk.ImageIOFactory.CreateImageIO( path, itk.CommonEnums.IOFileMode_ReadMode )
@@ -54,22 +57,69 @@ def recursivelySearchImages(images, decisions, pathPrefix, kind):
         count += 1
     print(f"{count} images in prefix {pathPrefix}")
 
+def constructPathFromCSVfields(participant_id, session_id, series_type, series_number, overall_qa_assessment):
+    subNum = "sub-" + str(participant_id).zfill(6)
+    sesNum = "ses-" + str(session_id)
+    runNum = "run-" + str(series_number).zfill(3)
+    sType = "PD"
+    if series_type[0] == "T":  # not PD
+        sType = series_type[0:2] + "w"
+    if overall_qa_assessment < 6:
+        sType = "BAD" + sType
+    fileName = "P:/PREDICTHD_BIDS_DEFACE/" + subNum + "/" + sesNum + "/anat/" + \
+               subNum + "_" + sesNum + "_" + runNum + "_" + sType + ".nii.gz"
+    return fileName
+
+def doesFileExist(fileName):
+    my_file = Path(fileName)
+    global eCount
+    global nCount
+    if my_file.is_file():
+        # print(f"Exists: {fileName}")
+        eCount += 1
+        return True
+    else:
+        print(f"Missing: {fileName}")
+        nCount += 1
+        return False
+
+
 def main():
     monai.config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
     wandb.init(project="miqa_01", sync_tensorboard=True)
     config = wandb.config
 
+    df = pd.read_csv(r'P:\PREDICTHD_BIDS_DEFACE\phenotype\bids_image_qc_information.tsv', sep='\t')
+    print(df)
+    df['file_path'] = df.apply(
+        lambda row: constructPathFromCSVfields(row['participant_id'],
+                                               row['session_id'],
+                                               row['series_type'],
+                                               row['series_number'],
+                                               row['overall_qa_assessment'],
+                                               ), axis=1)
+    df['exists'] = df.apply(lambda row: doesFileExist(row['file_path']), axis=1)
+    print(df)
+    print(f"Existing files: {eCount}, non-existent files: {nCount}")
+    df.to_csv(r'P:\PREDICTHD_BIDS_DEFACE\phenotype\bids_image_qc_information-my.csv', index = False)
+
+
     images = []
     decisions = []
-    recursivelySearchImages(images, decisions, os.getcwd()+'/NCANDA/unusable', 0)
-    recursivelySearchImages(images, decisions, os.getcwd()+'/NCANDA/v01', 1)
-    recursivelySearchImages(images, decisions, os.getcwd()+'/NCANDA/v03', 1)
-    countTrain = len(images) # NCANDA is training group
-    recursivelySearchImages(images, decisions, os.getcwd()+'/NCANDA/sri1', 1)
-    recursivelySearchImages(images, decisions, os.getcwd()+'/NCANDA/sri0', 0)
-    countVal = len(images) - countTrain # SRI is validation group
-    print(f"{len(images)} images total in NCANDA")
+    for row in df.itertuples():
+        if row.exists:
+            images.append(row.file_path)
+            decision = 0 if row.overall_qa_assessment < 6 else 1
+            decisions.append(decision)
+
+    countTrain = len(images)  # PredictHD is training group
+
+    recursivelySearchImages(images, decisions, os.getcwd() + '/NCANDA/unusable', 0)
+    recursivelySearchImages(images, decisions, os.getcwd() + '/NCANDA/v01', 1)
+    recursivelySearchImages(images, decisions, os.getcwd() + '/NCANDA/v03', 1)
+    countVal = len(images) - countTrain  # NCANDA is validation group
+    print(f"{len(images)} images total")
 
     # check image size distribution
     sizes = {}

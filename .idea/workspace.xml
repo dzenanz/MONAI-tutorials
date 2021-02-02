@@ -29,7 +29,7 @@
   <component name="ChangeListManager">
     <list default="true" id="f532d988-2a75-4fdc-8560-8a6a0ae81086" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/directClassification/directClassification.py" beforeDir="false" afterPath="$PROJECT_DIR$/directClassification/directClassification.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/3d_classification/torch/densenet_evaluation_dict.py" beforeDir="false" afterPath="$PROJECT_DIR$/3d_classification/torch/densenet_evaluation_dict.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -49,7 +49,7 @@
     <property name="last_opened_file_path" value="$PROJECT_DIR$/directClassification/directClassification.py" />
     <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable" />
   </component>
-  <component name="RunManager" selected="Python.DirectClassification">
+  <component name="RunManager" selected="Python.ClassificationTraining">
     <configuration name="ClassificationTesting" type="PythonConfigurationType" factoryName="Python">
       <module name="MONAI-tutorials" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -115,9 +115,9 @@
     </configuration>
     <list>
       <item itemvalue="Python.ClassificationTesting" />
-      <item itemvalue="Python.itkImageFilterNumPyInputsTest" />
-      <item itemvalue="Python.ClassificationTraining" />
       <item itemvalue="Python.DirectClassification" />
+      <item itemvalue="Python.ClassificationTraining" />
+      <item itemvalue="Python.itkImageFilterNumPyInputsTest" />
     </list>
     <recent_temporary>
       <list>
@@ -147,5 +147,16 @@
       </map>
     </option>
     <option name="oldMeFiltersMigrated" value="true" />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/3d_classification/torch/densenet_evaluation_dict.py</url>
+          <line>105</line>
+          <option name="timeStamp" value="7" />
+        </line-breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
   </component>
 </project>
