@@ -257,6 +257,10 @@ def main():
                     torch.save(model.state_dict(), model_path)
                     torch.save(model.state_dict(), os.path.join(wandb.run.dir, 'miqa01.pt'))
                     print("saved new best metric model")
+                else:
+                    epochSuffix = ".epoch" + str(epoch + 1)
+                    torch.save(model.state_dict(), model_path + epochSuffix)
+                    torch.save(model.state_dict(), os.path.join(wandb.run.dir, 'miqa01.pt' + epochSuffix))
                 print(
                     "current epoch: {} current accuracy: {:.4f} current AUC: {:.4f} best AUC: {:.4f} at epoch {}".format(
                         epoch + 1, acc_metric, auc_metric, best_metric, best_metric_epoch
