@@ -24,6 +24,7 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 import itkConfig
+
 itkConfig.LazyLoading = False
 import itk
 
@@ -39,15 +40,17 @@ model_path = os.getcwd() + "/miqa01.pth"
 eCount = 0
 nCount = 0
 
+
 def getImageDimension(path):
-    imageIO = itk.ImageIOFactory.CreateImageIO( path, itk.CommonEnums.IOFileMode_ReadMode )
+    imageIO = itk.ImageIOFactory.CreateImageIO(path, itk.CommonEnums.IOFileMode_ReadMode)
     if not imageIO:
         raise RuntimeError(f"No ImageIO is registered to handle {path}")
-    imageIO.SetFileName( path )
+    imageIO.SetFileName(path)
     imageIO.ReadImageInformation()
     assert imageIO.GetNumberOfDimensions() == 3
     dim = (imageIO.GetDimensions(0), imageIO.GetDimensions(1), imageIO.GetDimensions(2))
     return dim
+
 
 def recursivelySearchImages(images, decisions, pathPrefix, kind):
     count = 0
@@ -56,6 +59,7 @@ def recursivelySearchImages(images, decisions, pathPrefix, kind):
         decisions.append(kind)
         count += 1
     print(f"{count} images in prefix {pathPrefix}")
+
 
 def constructPathFromCSVfields(participant_id, session_id, series_type, series_number, overall_qa_assessment):
     subNum = "sub-" + str(participant_id).zfill(6)
@@ -69,6 +73,7 @@ def constructPathFromCSVfields(participant_id, session_id, series_type, series_n
     fileName = "P:/PREDICTHD_BIDS_DEFACE/" + subNum + "/" + sesNum + "/anat/" + \
                subNum + "_" + sesNum + "_" + runNum + "_" + sType + ".nii.gz"
     return fileName
+
 
 def doesFileExist(fileName):
     my_file = Path(fileName)
@@ -102,8 +107,7 @@ def main():
     df['exists'] = df.apply(lambda row: doesFileExist(row['file_path']), axis=1)
     print(df)
     print(f"Existing files: {eCount}, non-existent files: {nCount}")
-    df.to_csv(r'P:\PREDICTHD_BIDS_DEFACE\phenotype\bids_image_qc_information-my.csv', index = False)
-
+    df.to_csv(r'P:\PREDICTHD_BIDS_DEFACE\phenotype\bids_image_qc_information-my.csv', index=False)
 
     images = []
     decisions = []
@@ -178,7 +182,7 @@ def main():
     # calculate class weights
     goodCount = np.sum(labels[:countTrain])
     badCount = countTrain - goodCount
-    weightsArray = [goodCount/countTrain, badCount/countTrain]
+    weightsArray = [goodCount / countTrain, badCount / countTrain]
     print(f"badCount: {badCount}, goodCount: {goodCount}, weightsArray: {weightsArray}")
     classWeights = torch.tensor(weightsArray, dtype=torch.float).to(device)
 
@@ -270,7 +274,6 @@ def main():
                 writer.add_scalar("val_AUC", auc_metric, epoch + 1)
                 wandb.log({"val_accuracy": acc_metric})
                 wandb.log({"val_AUC": auc_metric})
-
 
     print(f"train completed, best_metric: {best_metric:.4f} at epoch: {best_metric_epoch}")
     writer.close()
