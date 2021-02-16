@@ -44,11 +44,16 @@ nCount = 0
 def getImageDimension(path):
     imageIO = itk.ImageIOFactory.CreateImageIO(path, itk.CommonEnums.IOFileMode_ReadMode)
     if not imageIO:
-        raise RuntimeError(f"No ImageIO is registered to handle {path}")
-    imageIO.SetFileName(path)
-    imageIO.ReadImageInformation()
-    assert imageIO.GetNumberOfDimensions() == 3
-    dim = (imageIO.GetDimensions(0), imageIO.GetDimensions(1), imageIO.GetDimensions(2))
+        raise RuntimeError(
+            f"No ImageIO is registered to handle {path}\nExisting: {eCount}, non-existent: {nCount}")
+    dim = (0, 0, 0)
+    try:
+        imageIO.SetFileName(path)
+        imageIO.ReadImageInformation()
+        assert imageIO.GetNumberOfDimensions() == 3
+        dim = (imageIO.GetDimensions(0), imageIO.GetDimensions(1), imageIO.GetDimensions(2))
+    except RuntimeError:
+        pass
     return dim
 
 
@@ -105,9 +110,11 @@ def main():
                                                row['overall_qa_assessment'],
                                                ), axis=1)
     df['exists'] = df.apply(lambda row: doesFileExist(row['file_path']), axis=1)
+    df['dimensions'] = df.apply(lambda row: getImageDimension(row['file_path']), axis=1)
     print(df)
     print(f"Existing files: {eCount}, non-existent files: {nCount}")
-    df.to_csv(r'P:\PREDICTHD_BIDS_DEFACE\phenotype\bids_image_qc_information-my.csv', index=False)
+    df.to_csv(r'M:\Dev\zarr\bids_image_qc_information-my.csv', index=False)
+    return
 
     images = []
     decisions = []
