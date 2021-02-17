@@ -132,20 +132,19 @@ def main():
 
     images = []
     decisions = []
+    sizes = {}
     for row in df.itertuples():
         if row.exists:
             images.append(row.file_path)
             decision = 0 if row.overall_qa_assessment < 6 else 1
             decisions.append(decision)
 
-    # check image size distribution
-    sizes = {}
-    for img in images:
-        size = getImageDimension(img)
-        if not size in sizes:
-            sizes[size] = 1
-        else:
-            sizes[size] += 1
+            size = row.dimensions
+            if not size in sizes:
+                sizes[size] = 1
+            else:
+                sizes[size] += 1
+
     print("Image size distribution:\n", sizes)
 
     # 2 binary labels for scan classification: 1=good, 0=bad
