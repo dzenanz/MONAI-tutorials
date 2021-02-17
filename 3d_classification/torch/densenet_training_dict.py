@@ -43,17 +43,15 @@ nCount = 0
 
 def getImageDimension(path):
     imageIO = itk.ImageIOFactory.CreateImageIO(path, itk.CommonEnums.IOFileMode_ReadMode)
-    if not imageIO:
-        raise RuntimeError(
-            f"No ImageIO is registered to handle {path}\nExisting: {eCount}, non-existent: {nCount}")
     dim = (0, 0, 0)
-    try:
-        imageIO.SetFileName(path)
-        imageIO.ReadImageInformation()
-        assert imageIO.GetNumberOfDimensions() == 3
-        dim = (imageIO.GetDimensions(0), imageIO.GetDimensions(1), imageIO.GetDimensions(2))
-    except RuntimeError:
-        pass
+    if imageIO is not None:
+        try:
+            imageIO.SetFileName(path)
+            imageIO.ReadImageInformation()
+            assert imageIO.GetNumberOfDimensions() == 3
+            dim = (imageIO.GetDimensions(0), imageIO.GetDimensions(1), imageIO.GetDimensions(2))
+        except RuntimeError:
+            pass
     return dim
 
 
