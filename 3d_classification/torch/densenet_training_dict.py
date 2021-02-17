@@ -92,14 +92,8 @@ def doesFileExist(fileName):
         return False
 
 
-def main():
-    monai.config.print_config()
-    logging.basicConfig(stream=sys.stdout, level=logging.INFO)
-    wandb.init(project="miqa_01", sync_tensorboard=True)
-    config = wandb.config
-
-    df = pd.read_csv(r'P:\PREDICTHD_BIDS_DEFACE\phenotype\bids_image_qc_information.tsv', sep='\t')
-    print(df)
+def readAndNormalizeDataFrame(tsvPath):
+    df = pd.read_csv(tsvPath, sep='\t')
     df['file_path'] = df.apply(
         lambda row: constructPathFromCSVfields(row['participant_id'],
                                                row['session_id'],
@@ -107,10 +101,24 @@ def main():
                                                row['series_number'],
                                                row['overall_qa_assessment'],
                                                ), axis=1)
+    global eCount
+    global nCount
+    eCount = 0
+    nCount = 0
     df['exists'] = df.apply(lambda row: doesFileExist(row['file_path']), axis=1)
     df['dimensions'] = df.apply(lambda row: getImageDimension(row['file_path']), axis=1)
-    print(df)
     print(f"Existing files: {eCount}, non-existent files: {nCount}")
+    return df
+
+
+def main():
+    monai.config.print_config()
+    logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+    wandb.init(project="miqa_01", sync_tensorboard=True)
+    config = wandb.config
+
+    df = readAndNormalizeDataFrame(r'P:\PREDICTHD_BIDS_DEFACE\phenotype\bids_image_qc_information.tsv')
+    print(df)
     df.to_csv(r'M:\Dev\zarr\bids_image_qc_information-my.csv', index=False)
     return
 
