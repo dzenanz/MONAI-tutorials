@@ -117,10 +117,18 @@ def main():
     wandb.init(project="miqa_01", sync_tensorboard=True)
     config = wandb.config
 
-    df = readAndNormalizeDataFrame(r'P:\PREDICTHD_BIDS_DEFACE\phenotype\bids_image_qc_information.tsv')
+    # df = readAndNormalizeDataFrame(r'P:\PREDICTHD_BIDS_DEFACE\phenotype\bids_image_qc_information.tsv')
+    # print(df)
+    # df.to_csv(r'M:\Dev\zarr\bids_image_qc_information-my.csv', index=False)
+    # return
+
+    fold0 = pd.read_csv(r"M:\Dev\zarr\_fold0.csv")
+    fold1 = pd.read_csv(r"M:\Dev\zarr\_fold1.csv")
+    fold2 = pd.read_csv(r"M:\Dev\zarr\_fold2.csv")
+    df = pd.concat([fold0, fold1, fold2])
     print(df)
-    df.to_csv(r'M:\Dev\zarr\bids_image_qc_information-my.csv', index=False)
-    return
+    countTrain = df.shape[0] - fold2.shape[0]
+    countVal = fold2.shape[0]
 
     images = []
     decisions = []
@@ -129,14 +137,6 @@ def main():
             images.append(row.file_path)
             decision = 0 if row.overall_qa_assessment < 6 else 1
             decisions.append(decision)
-
-    countTrain = len(images)  # PredictHD is training group
-
-    recursivelySearchImages(images, decisions, os.getcwd() + '/NCANDA/unusable', 0)
-    recursivelySearchImages(images, decisions, os.getcwd() + '/NCANDA/v01', 1)
-    recursivelySearchImages(images, decisions, os.getcwd() + '/NCANDA/v03', 1)
-    countVal = len(images) - countTrain  # NCANDA is validation group
-    print(f"{len(images)} images total")
 
     # check image size distribution
     sizes = {}
