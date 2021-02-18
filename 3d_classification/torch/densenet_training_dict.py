@@ -23,9 +23,6 @@ import torch
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
-import itkConfig
-
-itkConfig.LazyLoading = False
 import itk
 
 import wandb
