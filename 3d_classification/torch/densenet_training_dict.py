@@ -116,7 +116,7 @@ def evaluateModel(model, dataLoader, device, writer, epoch, setName):
             if metric_count % 60 == 0:
                 print("")
 
-        print(setName + "_confusion_matrix:")
+        print("\n" + setName + "_confusion_matrix:")
         print(confusion_matrix(y_true, y_pred))
         print(classification_report(y_true, y_pred))
 
