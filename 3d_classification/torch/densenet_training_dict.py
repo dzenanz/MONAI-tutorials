@@ -17,7 +17,7 @@ import wandb
 
 import monai
 from monai.metrics import compute_roc_auc
-from monai.transforms import AddChanneld, Compose, LoadImaged, RandRotated, Resized, ScaleIntensityd, ToTensord
+from monai.transforms import AddChanneld, Compose, LoadImaged, RandSpatialCropd, ScaleIntensityd, ToTensord
 
 from sklearn.metrics import confusion_matrix, classification_report
 
@@ -171,7 +171,7 @@ def main():
     train_files = [{"img": img, "label": label} for img, label in zip(images[:countTrain], labels[:countTrain])]
     val_files = [{"img": img, "label": label} for img, label in zip(images[-countVal:], labels[-countVal:])]
 
-    # TODO: shuffle train_files
+    # TODO: shuffle train_files (if not already done)
 
     # Define transforms for image
     train_transforms = Compose(
@@ -179,8 +179,7 @@ def main():
             LoadImaged(keys=["img"]),
             AddChanneld(keys=["img"]),
             ScaleIntensityd(keys=["img"]),
-            Resized(keys=["img"], spatial_size=(96, 96, 96)),
-            RandRotated(keys=["img"], prob=0.8, range_x=5, range_y=5, range_z=5),
+            RandSpatialCropd(keys=["img"], roi_size=(128, 48, 48), random_center=True, random_size=False),
             ToTensord(keys=["img"]),
         ]
     )
@@ -189,24 +188,24 @@ def main():
             LoadImaged(keys=["img"]),
             AddChanneld(keys=["img"]),
             ScaleIntensityd(keys=["img"]),
-            Resized(keys=["img"], spatial_size=(96, 96, 96)),
+            RandSpatialCropd(keys=["img"], roi_size=(128, 48, 48), random_center=True, random_size=False),
             ToTensord(keys=["img"]),
         ]
     )
 
     # Define dataset, data loader
     check_ds = monai.data.Dataset(data=train_files, transform=train_transforms)
-    check_loader = DataLoader(check_ds, batch_size=1, num_workers=2, pin_memory=torch.cuda.is_available())
+    check_loader = DataLoader(check_ds, batch_size=4, num_workers=2, pin_memory=torch.cuda.is_available())
     check_data = monai.utils.misc.first(check_loader)
     print(check_data["img"].shape, check_data["label"])
 
     # create a training data loader
     train_ds = monai.data.Dataset(data=train_files, transform=train_transforms)
-    train_loader = DataLoader(train_ds, batch_size=1, shuffle=True, num_workers=2, pin_memory=torch.cuda.is_available())
+    train_loader = DataLoader(train_ds, batch_size=4, shuffle=True, num_workers=2, pin_memory=torch.cuda.is_available())
 
     # create a validation data loader
     val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
-    val_loader = DataLoader(val_ds, batch_size=1, num_workers=2, pin_memory=torch.cuda.is_available())
+    val_loader = DataLoader(val_ds, batch_size=4, num_workers=2, pin_memory=torch.cuda.is_available())
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -218,7 +217,11 @@ def main():
     classWeights = torch.tensor(weightsArray, dtype=torch.float).to(device)
 
     # Create DenseNet121, CrossEntropyLoss and Adam optimizer
-    model = monai.networks.nets.densenet.densenet121(spatial_dims=3, in_channels=1, out_channels=2).to(device)
+    # model = monai.networks.nets.densenet.densenet121(spatial_dims=3, in_channels=1, out_channels=2).to(device)
+    model = monai.networks.nets.Classifier(in_shape=(1, 128, 48, 48), classes=2,
+                                           channels=(2, 4, 8, 16),
+                                           strides=(2, 2, 2, 2,)).to(
+        device)
     if (os.path.exists(model_path)):
         model.load_state_dict(torch.load(model_path))
         print(f"Loaded NN model from file '{model_path}'")
@@ -231,7 +234,7 @@ def main():
     wandb.watch(model)
 
     # start a typical PyTorch training
-    num_epochs = 20
+    num_epochs = 2000
     val_interval = 4
     best_metric = -1
     best_metric_epoch = -1
@@ -263,7 +266,7 @@ def main():
             print("Evaluating on validation set")
             auc_metric, acc_metric = evaluateModel(model, val_loader, device, writer, epoch, "val")
 
-            if auc_metric > best_metric:
+            if auc_metric >= best_metric:
                 best_metric = auc_metric
                 best_metric_epoch = epoch + 1
                 torch.save(model.state_dict(), model_path)
