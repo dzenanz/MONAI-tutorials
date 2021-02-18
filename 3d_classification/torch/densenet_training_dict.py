@@ -212,7 +212,7 @@ def main():
     # calculate class weights
     goodCount = np.sum(labels[:countTrain])
     badCount = countTrain - goodCount
-    weightsArray = [goodCount / countTrain, badCount / countTrain]
+    weightsArray = [badCount / countTrain, goodCount / countTrain]
     print(f"badCount: {badCount}, goodCount: {goodCount}, weightsArray: {weightsArray}")
     classWeights = torch.tensor(weightsArray, dtype=torch.float).to(device)
 
@@ -234,7 +234,7 @@ def main():
     wandb.watch(model)
 
     # start a typical PyTorch training
-    num_epochs = 2000
+    num_epochs = 20
     val_interval = 4
     best_metric = -1
     best_metric_epoch = -1
