@@ -222,11 +222,12 @@ def main():
                                            channels=(2, 4, 8, 16),
                                            strides=(2, 2, 2, 2,)).to(
         device)
-    if (os.path.exists(model_path)):
-        model.load_state_dict(torch.load(model_path))
-        print(f"Loaded NN model from file '{model_path}'")
-    else:
-        print("Training NN from scratch")
+
+    # if (os.path.exists(model_path)):
+    #     model.load_state_dict(torch.load(model_path))
+    #     print(f"Loaded NN model from file '{model_path}'")
+    # else:
+    #     print("Training NN from scratch")
 
     loss_function = torch.nn.CrossEntropyLoss(weight=classWeights)
     optimizer = torch.optim.Adam(model.parameters(), 1e-5)
