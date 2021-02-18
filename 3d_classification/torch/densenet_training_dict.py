@@ -141,9 +141,9 @@ def main():
     # df.to_csv(r'M:\Dev\zarr\bids_image_qc_information-my.csv', index=False)
     # return
 
-    fold0 = pd.read_csv(r"M:\Dev\zarr\_fold0.csv")
-    fold1 = pd.read_csv(r"M:\Dev\zarr\_fold1.csv")
-    fold2 = pd.read_csv(r"M:\Dev\zarr\_fold2.csv")
+    fold0 = pd.read_csv(r"M:\Dev\zarr\T1_fold0.csv")
+    fold1 = pd.read_csv(r"M:\Dev\zarr\T1_fold1.csv")
+    fold2 = pd.read_csv(r"M:\Dev\zarr\T1_fold2.csv")
     df = pd.concat([fold0, fold1, fold2])
     print(df)
     countTrain = df.shape[0] - fold2.shape[0]
