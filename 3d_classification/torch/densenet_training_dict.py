@@ -212,7 +212,7 @@ def main():
     # calculate class weights
     goodCount = np.sum(labels[:countTrain])
     badCount = countTrain - goodCount
-    weightsArray = [badCount / countTrain, goodCount / countTrain]
+    weightsArray = [goodCount / countTrain, badCount / countTrain]
     print(f"badCount: {badCount}, goodCount: {goodCount}, weightsArray: {weightsArray}")
     classWeights = torch.tensor(weightsArray, dtype=torch.float).to(device)
 
