@@ -111,6 +111,40 @@ def readAndNormalizeDataFrame(tsvPath):
     return df
 
 
+def evaluateModel(model, dataLoader, device, writer, epoch, setName):
+    model.eval()
+    y_pred = []
+    y_true = []
+    with torch.no_grad():
+        num_correct = 0.0
+        metric_count = 0
+        for val_data in dataLoader:
+            val_images, val_labels = val_data["img"].to(device), val_data["label"].to(device)
+            val_outputs = model(val_images).argmax(dim=1)
+
+            y_true.extend(val_labels.cpu().tolist())
+            y_pred.extend(val_outputs.cpu().tolist())
+
+            num_correct += val_outputs.sum().item()
+            metric_count += len(val_outputs)
+            print('.', end='')
+            if metric_count % 60 == 0:
+                print("")
+
+        print(setName + "_confusion_matrix:")
+        print(confusion_matrix(y_true, y_pred))
+        print(classification_report(y_true, y_pred))
+
+        acc_metric = num_correct / metric_count
+        auc_metric = compute_roc_auc(torch.as_tensor(y_pred), torch.as_tensor(y_true),
+                                     average=monai.utils.Average.WEIGHTED)
+        writer.add_scalar(setName + "_accuracy", acc_metric, epoch + 1)
+        writer.add_scalar(setName + "_AUC", auc_metric, epoch + 1)
+        wandb.log({setName + "_accuracy": acc_metric})
+        wandb.log({setName + "_AUC": auc_metric})
+        return auc_metric, acc_metric
+
+
 def main():
     monai.config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
@@ -241,51 +275,27 @@ def main():
         wandb.log({f"epoch average loss": epoch_loss})
 
         if (epoch + 1) % val_interval == 0:
-            print("Starting evaluation")
-            model.eval()
-            y_pred = []
-            y_true = []
-            with torch.no_grad():
-                num_correct = 0.0
-                metric_count = 0
-                for val_data in val_loader:
-                    val_images, val_labels = val_data["img"].to(device), val_data["label"].to(device)
-                    val_outputs = model(val_images).argmax(dim=1)
+            print("Evaluating on validation set")
+            auc_metric, acc_metric = evaluateModel(model, val_loader, device, writer, epoch, "val")
 
-                    y_true.extend(val_labels.cpu().tolist())
-                    y_pred.extend(val_outputs.cpu().tolist())
-
-                    num_correct += val_outputs.sum().item()
-                    metric_count += len(val_outputs)
-                    if metric_count % 20 == 0:
-                        print(f"Evaluated {metric_count}/{countVal}")
-
-                print("confusion_matrix:")
-                print(confusion_matrix(y_true, y_pred))
-                print(classification_report(y_true, y_pred))
-
-                acc_metric = num_correct / metric_count
-                auc_metric = compute_roc_auc(torch.as_tensor(y_pred), torch.as_tensor(y_true),
-                                             average=monai.utils.Average.WEIGHTED)
-                if auc_metric > best_metric:
-                    best_metric = auc_metric
-                    best_metric_epoch = epoch + 1
-                    torch.save(model.state_dict(), model_path)
-                    torch.save(model.state_dict(), os.path.join(wandb.run.dir, 'miqa01.pt'))
-                    print("saved new best metric model")
-                else:
-                    epochSuffix = ".epoch" + str(epoch + 1)
-                    torch.save(model.state_dict(), model_path + epochSuffix)
-                    torch.save(model.state_dict(), os.path.join(wandb.run.dir, 'miqa01.pt' + epochSuffix))
-                print(
-                    "current epoch: {} current accuracy: {:.4f} current AUC: {:.4f} best AUC: {:.4f} at epoch {}".format(
-                        epoch + 1, acc_metric, auc_metric, best_metric, best_metric_epoch
-                    )
+            if auc_metric > best_metric:
+                best_metric = auc_metric
+                best_metric_epoch = epoch + 1
+                torch.save(model.state_dict(), model_path)
+                torch.save(model.state_dict(), os.path.join(wandb.run.dir, 'miqa01.pt'))
+                print("saved new best metric model")
+            else:
+                epochSuffix = ".epoch" + str(epoch + 1)
+                torch.save(model.state_dict(), model_path + epochSuffix)
+                torch.save(model.state_dict(), os.path.join(wandb.run.dir, 'miqa01.pt' + epochSuffix))
+            print(
+                "current epoch: {} current accuracy: {:.4f} current AUC: {:.4f} best AUC: {:.4f} at epoch {}".format(
+                    epoch + 1, acc_metric, auc_metric, best_metric, best_metric_epoch
                 )
-                writer.add_scalar("val_accuracy", acc_metric, epoch + 1)
-                writer.add_scalar("val_AUC", auc_metric, epoch + 1)
-                wandb.log({"val_accuracy": acc_metric})
-                wandb.log({"val_AUC": auc_metric})
+            )
+
+            print("Evaluating on training set")
+            evaluateModel(model, train_loader, device, writer, epoch, "train")
 
     print(f"train completed, best_metric: {best_metric:.4f} at epoch: {best_metric_epoch}")
     writer.close()
