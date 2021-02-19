@@ -235,7 +235,7 @@ def main():
     wandb.watch(model)
 
     # start a typical PyTorch training
-    num_epochs = 20
+    num_epochs = 500
     val_interval = 4
     best_metric = -1
     best_metric_epoch = -1
