@@ -21,7 +21,6 @@ from monai.transforms import AddChanneld, Compose, LoadImaged, RandSpatialCropd,
 
 from sklearn.metrics import confusion_matrix, classification_report
 
-model_path = os.getcwd() + "/miqa01.pth"
 eCount = 0
 nCount = 0
 
@@ -130,25 +129,7 @@ def evaluateModel(model, dataLoader, device, writer, epoch, setName):
         return auc_metric, acc_metric
 
 
-def main():
-    monai.config.print_config()
-    logging.basicConfig(stream=sys.stdout, level=logging.INFO)
-    wandb.init(project="miqa_01", sync_tensorboard=True)
-    config = wandb.config
-
-    # df = readAndNormalizeDataFrame(r'P:\PREDICTHD_BIDS_DEFACE\phenotype\bids_image_qc_information.tsv')
-    # print(df)
-    # df.to_csv(r'M:\Dev\zarr\bids_image_qc_information-my.csv', index=False)
-    # return
-
-    fold0 = pd.read_csv(r"M:\Dev\zarr\T1_fold0.csv")
-    fold1 = pd.read_csv(r"M:\Dev\zarr\T1_fold1.csv")
-    fold2 = pd.read_csv(r"M:\Dev\zarr\T1_fold2.csv")
-    df = pd.concat([fold0, fold1, fold2])
-    print(df)
-    countTrain = df.shape[0] - fold2.shape[0]
-    countVal = fold2.shape[0]
-
+def trainAndSaveModel(df, countTrain, savePath, num_epochs, val_interval):
     images = []
     decisions = []
     sizes = {}
@@ -164,10 +145,9 @@ def main():
             else:
                 sizes[size] += 1
 
-    print("Image size distribution:\n", sizes)
-
     # 2 binary labels for scan classification: 1=good, 0=bad
     labels = np.asarray(decisions, dtype=np.int64)
+    countVal = df.shape[0] - countTrain
     train_files = [{"img": img, "label": label} for img, label in zip(images[:countTrain], labels[:countTrain])]
     val_files = [{"img": img, "label": label} for img, label in zip(images[-countVal:], labels[-countVal:])]
 
@@ -231,12 +211,10 @@ def main():
 
     loss_function = torch.nn.CrossEntropyLoss(weight=classWeights)
     optimizer = torch.optim.Adam(model.parameters(), 1e-5)
-    config.learning_rate = 1e-5
+    wandb.config.learning_rate = 1e-5
     wandb.watch(model)
 
     # start a typical PyTorch training
-    num_epochs = 500
-    val_interval = 4
     best_metric = -1
     best_metric_epoch = -1
     writer = SummaryWriter(log_dir=wandb.run.dir)
@@ -270,12 +248,12 @@ def main():
             if auc_metric >= best_metric:
                 best_metric = auc_metric
                 best_metric_epoch = epoch + 1
-                torch.save(model.state_dict(), model_path)
+                torch.save(model.state_dict(), savePath)
                 torch.save(model.state_dict(), os.path.join(wandb.run.dir, 'miqa01.pt'))
                 print("saved new best metric model")
             else:
                 epochSuffix = ".epoch" + str(epoch + 1)
-                torch.save(model.state_dict(), model_path + epochSuffix)
+                torch.save(model.state_dict(), savePath + epochSuffix)
                 torch.save(model.state_dict(), os.path.join(wandb.run.dir, 'miqa01.pt' + epochSuffix))
             print(
                 "current epoch: {} current accuracy: {:.4f} current AUC: {:.4f} best AUC: {:.4f} at epoch {}".format(
@@ -288,7 +266,44 @@ def main():
 
     print(f"train completed, best_metric: {best_metric:.4f} at epoch: {best_metric_epoch}")
     writer.close()
+    return sizes
 
+
+def main():
+    monai.config.print_config()
+    logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+    wandb.init(project="miqa_01", sync_tensorboard=True)
+
+    # df = readAndNormalizeDataFrame(r'P:\PREDICTHD_BIDS_DEFACE\phenotype\bids_image_qc_information.tsv')
+    # print(df)
+    # df.to_csv(r'M:\Dev\zarr\bids_image_qc_information-my.csv', index=False)
+    # return
+
+    fold0 = pd.read_csv(r"M:\Dev\zarr\T1_fold0.csv")
+    fold1 = pd.read_csv(r"M:\Dev\zarr\T1_fold1.csv")
+    fold2 = pd.read_csv(r"M:\Dev\zarr\T1_fold2.csv")
+    df = pd.concat([fold0, fold1, fold2])
+    print(df)
+
+    print("Using fold 2 for validation")
+    df = pd.concat([fold0, fold1, fold2])
+    countTrain = df.shape[0] - fold2.shape[0]
+    model_path = os.getcwd() + "/miqa01-val2.pth"
+    sizes = trainAndSaveModel(df, countTrain, savePath=model_path, num_epochs=15, val_interval=1)
+
+    print("Using fold 0 for validation")
+    df = pd.concat([fold1, fold2, fold0])
+    countTrain = df.shape[0] - fold0.shape[0]
+    model_path = os.getcwd() + "/miqa01-val0.pth"
+    trainAndSaveModel(df, countTrain, savePath=model_path, num_epochs=15, val_interval=1)
+
+    print("Using fold 1 for validation")
+    df = pd.concat([fold0, fold2, fold1])
+    countTrain = df.shape[0] - fold1.shape[0]
+    model_path = os.getcwd() + "/miqa01-val1.pth"
+    trainAndSaveModel(df, countTrain, savePath=model_path, num_epochs=15, val_interval=1)
+
+    print("Image size distribution:\n", sizes)
 
 if __name__ == "__main__":
     main()
