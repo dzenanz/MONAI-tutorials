@@ -287,7 +287,7 @@ def main(valdationFold):
     df = pd.concat(folds)
     countTrain = df.shape[0] - vf.shape[0]
     model_path = os.getcwd() + f"/miqa01-val{valdationFold}.pth"
-    sizes = trainAndSaveModel(df, countTrain, savePath=model_path, num_epochs=15, val_interval=1)
+    sizes = trainAndSaveModel(df, countTrain, savePath=model_path, num_epochs=150, val_interval=4)
 
     print("Image size distribution:\n", sizes)
 
