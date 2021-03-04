@@ -269,41 +269,35 @@ def trainAndSaveModel(df, countTrain, savePath, num_epochs, val_interval):
     return sizes
 
 
-def main():
+def main(valdationFold):
     monai.config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
     wandb.init(project="miqa_01", sync_tensorboard=True)
 
+    folds = []
+    for f in range(3):
+        folds.append(pd.read_csv(f"M:/Dev/zarr/T1_fold{f}.csv"))
+
+    df = pd.concat(folds)
+    print(df)
+
+    print(f"Using fold {valdationFold} for validation")
+    vf = folds.pop(valdationFold)
+    folds.append(vf)
+    df = pd.concat(folds)
+    countTrain = df.shape[0] - vf.shape[0]
+    model_path = os.getcwd() + f"/miqa01-val{valdationFold}.pth"
+    sizes = trainAndSaveModel(df, countTrain, savePath=model_path, num_epochs=15, val_interval=1)
+
+    print("Image size distribution:\n", sizes)
+
+if __name__ == "__main__":
     # df = readAndNormalizeDataFrame(r'P:\PREDICTHD_BIDS_DEFACE\phenotype\bids_image_qc_information.tsv')
     # print(df)
     # df.to_csv(r'M:\Dev\zarr\bids_image_qc_information-my.csv', index=False)
     # return
 
-    fold0 = pd.read_csv(r"M:\Dev\zarr\T1_fold0.csv")
-    fold1 = pd.read_csv(r"M:\Dev\zarr\T1_fold1.csv")
-    fold2 = pd.read_csv(r"M:\Dev\zarr\T1_fold2.csv")
-    df = pd.concat([fold0, fold1, fold2])
-    print(df)
-
-    print("Using fold 2 for validation")
-    df = pd.concat([fold0, fold1, fold2])
-    countTrain = df.shape[0] - fold2.shape[0]
-    model_path = os.getcwd() + "/miqa01-val2.pth"
-    sizes = trainAndSaveModel(df, countTrain, savePath=model_path, num_epochs=15, val_interval=1)
-
-    print("Using fold 0 for validation")
-    df = pd.concat([fold1, fold2, fold0])
-    countTrain = df.shape[0] - fold0.shape[0]
-    model_path = os.getcwd() + "/miqa01-val0.pth"
-    trainAndSaveModel(df, countTrain, savePath=model_path, num_epochs=15, val_interval=1)
-
-    print("Using fold 1 for validation")
-    df = pd.concat([fold0, fold2, fold1])
-    countTrain = df.shape[0] - fold1.shape[0]
-    model_path = os.getcwd() + "/miqa01-val1.pth"
-    trainAndSaveModel(df, countTrain, savePath=model_path, num_epochs=15, val_interval=1)
-
-    print("Image size distribution:\n", sizes)
-
-if __name__ == "__main__":
-    main()
+    fold = 2
+    if len(sys.argv)>1:
+        fold = int(sys.argv[1])
+    main(fold)
