@@ -224,6 +224,8 @@ def trainAndSaveModel(df, countTrain, savePath, num_epochs, val_interval):
         model.train()
         epoch_loss = 0
         step = 0
+        epoch_len = len(train_ds) // train_loader.batch_size
+        print(f"epoch_len: {epoch_len}")
         for batch_data in train_loader:
             step += 1
             inputs, labels = batch_data["img"].to(device), batch_data["label"].to(device)
@@ -234,11 +236,11 @@ def trainAndSaveModel(df, countTrain, savePath, num_epochs, val_interval):
             optimizer.step()
             epoch_loss += loss.item()
             epoch_len = len(train_ds) // train_loader.batch_size
-            print(f"{step}/{epoch_len}, train_loss: {loss.item():.4f}")
+            print(f"{step}:{loss.item():.4f}", end=' ')
             writer.add_scalar("train_loss", loss.item(), epoch_len * epoch + step)
             wandb.log({"train_loss": loss.item()})
         epoch_loss /= step
-        print(f"epoch {epoch + 1} average loss: {epoch_loss:.4f}")
+        print(f"\nepoch {epoch + 1} average loss: {epoch_loss:.4f}")
         wandb.log({f"epoch average loss": epoch_loss})
 
         if (epoch + 1) % val_interval == 0:
