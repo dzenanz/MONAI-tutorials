@@ -210,7 +210,7 @@ def trainAndSaveModel(df, countTrain, savePath, num_epochs, val_interval):
     #     print("Training NN from scratch")
 
     loss_function = torch.nn.CrossEntropyLoss(weight=classWeights)
-    wandb.config.learning_rate = 1e-7
+    wandb.config.learning_rate = 1e-8
     optimizer = torch.optim.Adam(model.parameters(), wandb.config.learning_rate)
     wandb.watch(model)
 
