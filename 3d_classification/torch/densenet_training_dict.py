@@ -129,7 +129,7 @@ def evaluateModel(model, dataLoader, device, writer, epoch, setName):
         return auc_metric, acc_metric
 
 
-def trainAndSaveModel(df, countTrain, savePath, num_epochs, val_interval):
+def trainAndSaveModel(df, countTrain, savePath, num_epochs, val_interval, evaluationOnly):
     images = []
     decisions = []
     sizes = {}
@@ -203,11 +203,11 @@ def trainAndSaveModel(df, countTrain, savePath, num_epochs, val_interval):
                                            strides=(2, 2, 2, 2,)).to(
         device)
 
-    # if (os.path.exists(model_path)):
-    #     model.load_state_dict(torch.load(model_path))
-    #     print(f"Loaded NN model from file '{model_path}'")
-    # else:
-    #     print("Training NN from scratch")
+    if os.path.exists(savePath) and evaluationOnly:
+        model.load_state_dict(torch.load(savePath))
+        print(f"Loaded NN model from file '{savePath}'")
+    else:
+        print("Training NN from scratch")
 
     loss_function = torch.nn.CrossEntropyLoss(weight=classWeights)
     wandb.config.learning_rate = 1e-8
@@ -218,6 +218,11 @@ def trainAndSaveModel(df, countTrain, savePath, num_epochs, val_interval):
     best_metric = -1
     best_metric_epoch = -1
     writer = SummaryWriter(log_dir=wandb.run.dir)
+
+    if evaluationOnly:
+        auc_metric, acc_metric = evaluateModel(model, val_loader, device, writer, 0, "eval")
+        return sizes
+
     for epoch in range(num_epochs):
         print("-" * 10)
         print(f"epoch {epoch + 1}/{num_epochs}")
@@ -237,6 +242,8 @@ def trainAndSaveModel(df, countTrain, savePath, num_epochs, val_interval):
             epoch_loss += loss.item()
             epoch_len = len(train_ds) // train_loader.batch_size
             print(f"{step}:{loss.item():.4f}", end=' ')
+            if step % 10 == 0:
+                print("")  # new line
             writer.add_scalar("train_loss", loss.item(), epoch_len * epoch + step)
             wandb.log({"train_loss": loss.item()})
         epoch_loss /= step
@@ -271,7 +278,7 @@ def trainAndSaveModel(df, countTrain, savePath, num_epochs, val_interval):
     return sizes
 
 
-def main(valdationFold):
+def main(valdationFold, evaluationOnly):
     monai.config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
     wandb.init(project="miqa_01", sync_tensorboard=True)
@@ -289,9 +296,11 @@ def main(valdationFold):
     df = pd.concat(folds)
     countTrain = df.shape[0] - vf.shape[0]
     model_path = os.getcwd() + f"/miqa01-val{valdationFold}.pth"
-    sizes = trainAndSaveModel(df, countTrain, savePath=model_path, num_epochs=150, val_interval=4)
+    sizes = trainAndSaveModel(df, countTrain, savePath=model_path, num_epochs=150, val_interval=4,
+                              evaluationOnly=evaluationOnly)
 
     print("Image size distribution:\n", sizes)
+
 
 if __name__ == "__main__":
     # df = readAndNormalizeDataFrame(r'P:\PREDICTHD_BIDS_DEFACE\phenotype\bids_image_qc_information.tsv')
@@ -300,6 +309,11 @@ if __name__ == "__main__":
     # return
 
     fold = 2
-    if len(sys.argv)>1:
+    if len(sys.argv) > 1:
         fold = int(sys.argv[1])
-    main(fold)
+
+    evaluationOnly = False
+    if len(sys.argv) > 2:
+        evaluationOnly = (int(sys.argv[2]) != 0)
+
+    main(fold, evaluationOnly)
