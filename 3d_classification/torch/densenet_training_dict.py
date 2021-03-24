@@ -2,6 +2,7 @@ import logging
 import os
 import sys
 from pathlib import Path
+from typing import Optional, Sequence, Union
 
 import json
 import pandas as pd
@@ -16,6 +17,8 @@ import itk
 import wandb
 
 import monai
+from monai.networks.layers.factories import Act, Norm
+from monai.networks.nets.regressor import Regressor
 from monai.metrics import compute_roc_auc
 from monai.transforms import AddChanneld, Compose, LoadImaged, RandSpatialCropd, ScaleIntensityd, ToTensord
 
@@ -93,6 +96,39 @@ def readAndNormalizeDataFrame(tsvPath):
     df['dimensions'] = df.apply(lambda row: getImageDimension(row['file_path']), axis=1)
     print(f"Existing files: {eCount}, non-existent files: {nCount}")
     return df
+
+
+class tiled_classifier(monai.networks.nets.Classifier):
+    def __init__(
+            self,
+            in_shape: Sequence[int],
+            classes: int,
+            channels: Sequence[int],
+            strides: Sequence[int],
+            kernel_size: Union[Sequence[int], int] = 3,
+            num_res_units: int = 2,
+            act=Act.PRELU,
+            norm=Norm.INSTANCE,
+            dropout: Optional[float] = None,
+            bias: bool = True,
+            last_act: Optional[str] = None, ) -> None:
+        # just pass all parameters to the parent class' constructor
+        super().__init__(
+            in_shape=in_shape,
+            classes=classes,
+            channels=channels,
+            strides=strides,
+            kernel_size=kernel_size,
+            num_res_units=num_res_units,
+            act=act,
+            norm=norm,
+            dropout=dropout,
+            bias=bias,
+            last_act=last_act,
+        )
+
+    def forward(self, inputs):
+        return super().forward(inputs)
 
 
 def evaluateModel(model, dataLoader, device, writer, epoch, setName):
@@ -198,9 +234,9 @@ def trainAndSaveModel(df, countTrain, savePath, num_epochs, val_interval, evalua
 
     # Create DenseNet121, CrossEntropyLoss and Adam optimizer
     # model = monai.networks.nets.densenet.densenet121(spatial_dims=3, in_channels=1, out_channels=2).to(device)
-    model = monai.networks.nets.Classifier(in_shape=(1, 128, 48, 48), classes=2,
-                                           channels=(2, 4, 8, 16),
-                                           strides=(2, 2, 2, 2,)).to(
+    model = tiled_classifier(in_shape=(1, 128, 48, 48), classes=2,
+                             channels=(2, 4, 8, 16),
+                             strides=(2, 2, 2, 2,)).to(
         device)
 
     if os.path.exists(savePath) and evaluationOnly:
