@@ -210,7 +210,7 @@ def trainAndSaveModel(df, countTrain, savePath, num_epochs, val_interval, evalua
         print("Training NN from scratch")
 
     loss_function = torch.nn.CrossEntropyLoss(weight=classWeights)
-    wandb.config.learning_rate = 1e-8
+    wandb.config.learning_rate = 1e-5
     optimizer = torch.optim.Adam(model.parameters(), wandb.config.learning_rate)
     wandb.watch(model)
 
@@ -296,7 +296,7 @@ def main(valdationFold, evaluationOnly):
     df = pd.concat(folds)
     countTrain = df.shape[0] - vf.shape[0]
     model_path = os.getcwd() + f"/miqa01-val{valdationFold}.pth"
-    sizes = trainAndSaveModel(df, countTrain, savePath=model_path, num_epochs=150, val_interval=4,
+    sizes = trainAndSaveModel(df, countTrain, savePath=model_path, num_epochs=15, val_interval=4,
                               evaluationOnly=evaluationOnly)
 
     print("Image size distribution:\n", sizes)
