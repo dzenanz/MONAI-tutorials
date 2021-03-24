@@ -2,6 +2,7 @@ import logging
 import os
 import sys
 from pathlib import Path
+import math
 from typing import Optional, Sequence, Union
 
 import json
@@ -100,7 +101,36 @@ def readAndNormalizeDataFrame(tsvPath):
 
 class tiled_classifier(monai.networks.nets.Classifier):
     def forward(self, inputs):
-        return super().forward(inputs)
+        # split the input image into tiles and run each tile through NN
+        results = []
+        x_tile_size = self.in_shape[0]
+        y_tile_size = self.in_shape[1]
+        z_tile_size = self.in_shape[2]
+        x_size = inputs.shape[2]
+        y_size = inputs.shape[3]
+        z_size = inputs.shape[4]
+        x_steps = math.ceil(x_size / x_tile_size)
+        y_steps = math.ceil(y_size / y_tile_size)
+        z_steps = math.ceil(z_size / z_tile_size)
+        # TODO: figure out the best tiling order (IJK vs KJI)
+        for i in range(x_steps):
+            i_start = round(i * (x_size - x_tile_size) / x_steps)
+            for j in range(y_steps):
+                j_start = round(j * (y_size - y_tile_size) / y_steps)
+                for k in range(z_steps):
+                    k_start = round(k * (z_size - z_tile_size) / z_steps)
+
+                    # use slicing operator to make a tile
+                    tile = inputs[:, :,
+                           i_start:i_start + x_tile_size,
+                           j_start:j_start + y_tile_size,
+                           k_start: k_start + z_tile_size]
+                    results.append(super().forward(tile))
+
+        # TODO: do something smarter than mean here
+        # self.out_shape[0] is the number of output classes
+        average = torch.mean(torch.stack(results), dim=0)
+        return average
 
 
 def evaluateModel(model, dataLoader, device, writer, epoch, setName):
@@ -167,7 +197,6 @@ def trainAndSaveModel(df, countTrain, savePath, num_epochs, val_interval, evalua
             LoadImaged(keys=["img"]),
             AddChanneld(keys=["img"]),
             ScaleIntensityd(keys=["img"]),
-            RandSpatialCropd(keys=["img"], roi_size=(128, 48, 48), random_center=True, random_size=False),
             ToTensord(keys=["img"]),
         ]
     )
@@ -176,24 +205,23 @@ def trainAndSaveModel(df, countTrain, savePath, num_epochs, val_interval, evalua
             LoadImaged(keys=["img"]),
             AddChanneld(keys=["img"]),
             ScaleIntensityd(keys=["img"]),
-            RandSpatialCropd(keys=["img"], roi_size=(128, 48, 48), random_center=True, random_size=False),
             ToTensord(keys=["img"]),
         ]
     )
 
     # Define dataset, data loader
     check_ds = monai.data.Dataset(data=train_files, transform=train_transforms)
-    check_loader = DataLoader(check_ds, batch_size=4, num_workers=2, pin_memory=torch.cuda.is_available())
+    check_loader = DataLoader(check_ds, batch_size=1, num_workers=1, pin_memory=torch.cuda.is_available())
     check_data = monai.utils.misc.first(check_loader)
     print(f'Single input\'s shape: {check_data["img"].shape}, label: {check_data["label"]}')
 
     # create a training data loader
     train_ds = monai.data.Dataset(data=train_files, transform=train_transforms)
-    train_loader = DataLoader(train_ds, batch_size=4, shuffle=True, num_workers=2, pin_memory=torch.cuda.is_available())
+    train_loader = DataLoader(train_ds, batch_size=1, shuffle=True, num_workers=1, pin_memory=torch.cuda.is_available())
 
     # create a validation data loader
     val_ds = monai.data.Dataset(data=val_files, transform=val_transforms)
-    val_loader = DataLoader(val_ds, batch_size=4, num_workers=2, pin_memory=torch.cuda.is_available())
+    val_loader = DataLoader(val_ds, batch_size=1, num_workers=1, pin_memory=torch.cuda.is_available())
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
