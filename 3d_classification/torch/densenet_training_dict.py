@@ -185,7 +185,7 @@ def trainAndSaveModel(df, countTrain, savePath, num_epochs, val_interval, evalua
     check_ds = monai.data.Dataset(data=train_files, transform=train_transforms)
     check_loader = DataLoader(check_ds, batch_size=4, num_workers=2, pin_memory=torch.cuda.is_available())
     check_data = monai.utils.misc.first(check_loader)
-    print(check_data["img"].shape, check_data["label"])
+    print(f'Single input\'s shape: {check_data["img"].shape}, label: {check_data["label"]}')
 
     # create a training data loader
     train_ds = monai.data.Dataset(data=train_files, transform=train_transforms)
