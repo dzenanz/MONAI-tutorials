@@ -99,34 +99,6 @@ def readAndNormalizeDataFrame(tsvPath):
 
 
 class tiled_classifier(monai.networks.nets.Classifier):
-    def __init__(
-            self,
-            in_shape: Sequence[int],
-            classes: int,
-            channels: Sequence[int],
-            strides: Sequence[int],
-            kernel_size: Union[Sequence[int], int] = 3,
-            num_res_units: int = 2,
-            act=Act.PRELU,
-            norm=Norm.INSTANCE,
-            dropout: Optional[float] = None,
-            bias: bool = True,
-            last_act: Optional[str] = None, ) -> None:
-        # just pass all parameters to the parent class' constructor
-        super().__init__(
-            in_shape=in_shape,
-            classes=classes,
-            channels=channels,
-            strides=strides,
-            kernel_size=kernel_size,
-            num_res_units=num_res_units,
-            act=act,
-            norm=norm,
-            dropout=dropout,
-            bias=bias,
-            last_act=last_act,
-        )
-
     def forward(self, inputs):
         return super().forward(inputs)
 
