@@ -3,9 +3,7 @@ import os
 import sys
 from pathlib import Path
 import math
-from typing import Optional, Sequence, Union
 
-import json
 import pandas as pd
 
 import numpy as np
@@ -18,88 +16,88 @@ import itk
 import wandb
 
 import monai
-from monai.networks.layers.factories import Act, Norm
+from monai.networks.layers.factories import Act
 from monai.networks.nets.regressor import Regressor
 from monai.metrics import compute_roc_auc
 from monai.transforms import AddChanneld, Compose, LoadImaged, RandSpatialCropd, ScaleIntensityd, ToTensord
 
 from sklearn.metrics import confusion_matrix, classification_report
 
-eCount = 0
-nCount = 0
+existing_count = 0
+missing_count = 0
 
 
-def getImageDimension(path):
-    imageIO = itk.ImageIOFactory.CreateImageIO(path, itk.CommonEnums.IOFileMode_ReadMode)
+def get_image_dimension(path):
+    image_io = itk.ImageIOFactory.CreateImageIO(path, itk.CommonEnums.IOFileMode_ReadMode)
     dim = (0, 0, 0)
-    if imageIO is not None:
+    if image_io is not None:
         try:
-            imageIO.SetFileName(path)
-            imageIO.ReadImageInformation()
-            assert imageIO.GetNumberOfDimensions() == 3
-            dim = (imageIO.GetDimensions(0), imageIO.GetDimensions(1), imageIO.GetDimensions(2))
+            image_io.SetFileName(path)
+            image_io.ReadImageInformation()
+            assert image_io.GetNumberOfDimensions() == 3
+            dim = (image_io.GetDimensions(0), image_io.GetDimensions(1), image_io.GetDimensions(2))
         except RuntimeError:
             pass
     return dim
 
 
-def recursivelySearchImages(images, decisions, pathPrefix, kind):
+def recursively_search_images(images, decisions, path_prefix, kind):
     count = 0
-    for path in Path(pathPrefix).rglob('*.nii.gz'):
+    for path in Path(path_prefix).rglob('*.nii.gz'):
         images.append(str(path))
         decisions.append(kind)
         count += 1
-    print(f"{count} images in prefix {pathPrefix}")
+    print(f"{count} images in prefix {path_prefix}")
 
 
-def constructPathFromCSVfields(participant_id, session_id, series_type, series_number, overall_qa_assessment):
-    subNum = "sub-" + str(participant_id).zfill(6)
-    sesNum = "ses-" + str(session_id)
-    runNum = "run-" + str(series_number).zfill(3)
-    sType = "PD"
+def construct_path_from_csv_fields(participant_id, session_id, series_type, series_number, overall_qa_assessment):
+    sub_num = "sub-" + str(participant_id).zfill(6)
+    ses_num = "ses-" + str(session_id)
+    run_num = "run-" + str(series_number).zfill(3)
+    scan_type = "PD"
     if series_type[0] == "T":  # not PD
-        sType = series_type[0:2] + "w"
+        scan_type = series_type[0:2] + "w"
     if overall_qa_assessment < 6:
-        sType = "BAD" + sType
-    fileName = "P:/PREDICTHD_BIDS_DEFACE/" + subNum + "/" + sesNum + "/anat/" + \
-               subNum + "_" + sesNum + "_" + runNum + "_" + sType + ".nii.gz"
-    return fileName
+        scan_type = "BAD" + scan_type
+    file_name = "P:/PREDICTHD_BIDS_DEFACE/" + sub_num + "/" + ses_num + "/anat/" + \
+                sub_num + "_" + ses_num + "_" + run_num + "_" + scan_type + ".nii.gz"
+    return file_name
 
 
-def doesFileExist(fileName):
-    my_file = Path(fileName)
-    global eCount
-    global nCount
+def does_file_exist(file_name):
+    my_file = Path(file_name)
+    global existing_count
+    global missing_count
     if my_file.is_file():
         # print(f"Exists: {fileName}")
-        eCount += 1
+        existing_count += 1
         return True
     else:
         # print(f"Missing: {fileName}")
-        nCount += 1
+        missing_count += 1
         return False
 
 
-def readAndNormalizeDataFrame(tsvPath):
-    df = pd.read_csv(tsvPath, sep='\t')
+def read_and_normalize_data_frame(tsv_path):
+    df = pd.read_csv(tsv_path, sep='\t')
     df['file_path'] = df.apply(
-        lambda row: constructPathFromCSVfields(row['participant_id'],
-                                               row['session_id'],
-                                               row['series_type'],
-                                               row['series_number'],
-                                               row['overall_qa_assessment'],
-                                               ), axis=1)
-    global eCount
-    global nCount
-    eCount = 0
-    nCount = 0
-    df['exists'] = df.apply(lambda row: doesFileExist(row['file_path']), axis=1)
-    df['dimensions'] = df.apply(lambda row: getImageDimension(row['file_path']), axis=1)
-    print(f"Existing files: {eCount}, non-existent files: {nCount}")
+        lambda row: construct_path_from_csv_fields(row['participant_id'],
+                                                   row['session_id'],
+                                                   row['series_type'],
+                                                   row['series_number'],
+                                                   row['overall_qa_assessment'],
+                                                   ), axis=1)
+    global existing_count
+    global missing_count
+    existing_count = 0
+    missing_count = 0
+    df['exists'] = df.apply(lambda row: does_file_exist(row['file_path']), axis=1)
+    df['dimensions'] = df.apply(lambda row: get_image_dimension(row['file_path']), axis=1)
+    print(f"Existing files: {existing_count}, non-existent files: {missing_count}")
     return df
 
 
-class tiled_classifier(monai.networks.nets.Classifier):
+class TiledClassifier(monai.networks.nets.Classifier):
     def forward(self, inputs):
         # split the input image into tiles and run each tile through NN
         results = []
@@ -133,14 +131,14 @@ class tiled_classifier(monai.networks.nets.Classifier):
         return average
 
 
-def evaluateModel(model, dataLoader, device, writer, epoch, setName):
+def evaluate_model(model, data_loader, device, writer, epoch, run_name):
     model.eval()
     y_pred = []
     y_true = []
     with torch.no_grad():
         num_correct = 0.0
         metric_count = 0
-        for val_data in dataLoader:
+        for val_data in data_loader:
             val_images, val_labels = val_data["img"].to(device), val_data["label"].to(device)
             val_outputs = model(val_images).argmax(dim=1)
 
@@ -153,21 +151,21 @@ def evaluateModel(model, dataLoader, device, writer, epoch, setName):
             if metric_count % 60 == 0:
                 print("")
 
-        print("\n" + setName + "_confusion_matrix:")
+        print("\n" + run_name + "_confusion_matrix:")
         print(confusion_matrix(y_true, y_pred))
         print(classification_report(y_true, y_pred))
 
         acc_metric = num_correct / metric_count
         auc_metric = compute_roc_auc(torch.as_tensor(y_pred), torch.as_tensor(y_true),
                                      average=monai.utils.Average.WEIGHTED)
-        writer.add_scalar(setName + "_accuracy", acc_metric, epoch + 1)
-        writer.add_scalar(setName + "_AUC", auc_metric, epoch + 1)
-        wandb.log({setName + "_accuracy": acc_metric})
-        wandb.log({setName + "_AUC": auc_metric})
+        writer.add_scalar(run_name + "_accuracy", acc_metric, epoch + 1)
+        writer.add_scalar(run_name + "_AUC", auc_metric, epoch + 1)
+        wandb.log({run_name + "_accuracy": acc_metric})
+        wandb.log({run_name + "_AUC": auc_metric})
         return auc_metric, acc_metric
 
 
-def trainAndSaveModel(df, countTrain, savePath, num_epochs, val_interval, evaluationOnly):
+def train_and_save_model(df, count_train, save_path, num_epochs, val_interval, only_evaluate):
     images = []
     decisions = []
     sizes = {}
@@ -178,16 +176,16 @@ def trainAndSaveModel(df, countTrain, savePath, num_epochs, val_interval, evalua
             decisions.append(decision)
 
             size = row.dimensions
-            if not size in sizes:
+            if size not in sizes:
                 sizes[size] = 1
             else:
                 sizes[size] += 1
 
     # 2 binary labels for scan classification: 1=good, 0=bad
     labels = np.asarray(decisions, dtype=np.int64)
-    countVal = df.shape[0] - countTrain
-    train_files = [{"img": img, "label": label} for img, label in zip(images[:countTrain], labels[:countTrain])]
-    val_files = [{"img": img, "label": label} for img, label in zip(images[-countVal:], labels[-countVal:])]
+    count_val = df.shape[0] - count_train
+    train_files = [{"img": img, "label": label} for img, label in zip(images[:count_train], labels[:count_train])]
+    val_files = [{"img": img, "label": label} for img, label in zip(images[-count_val:], labels[-count_val:])]
 
     # TODO: shuffle train_files (if not already done)
 
@@ -226,26 +224,25 @@ def trainAndSaveModel(df, countTrain, savePath, num_epochs, val_interval, evalua
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # calculate class weights
-    goodCount = np.sum(labels[:countTrain])
-    badCount = countTrain - goodCount
-    weightsArray = [goodCount / countTrain, badCount / countTrain]
-    print(f"badCount: {badCount}, goodCount: {goodCount}, weightsArray: {weightsArray}")
-    classWeights = torch.tensor(weightsArray, dtype=torch.float).to(device)
+    good_count = np.sum(labels[:count_train])
+    bad_count = count_train - good_count
+    weights_array = [good_count / count_train, bad_count / count_train]
+    print(f"bad_count: {bad_count}, good_count: {good_count}, weights_array: {weights_array}")
+    class_weights = torch.tensor(weights_array, dtype=torch.float).to(device)
 
-    # Create DenseNet121, CrossEntropyLoss and Adam optimizer
-    # model = monai.networks.nets.densenet.densenet121(spatial_dims=3, in_channels=1, out_channels=2).to(device)
-    model = tiled_classifier(in_shape=(1, 128, 48, 48), classes=2,
-                             channels=(2, 4, 8, 16),
-                             strides=(2, 2, 2, 2,)).to(
+    model = TiledClassifier(in_shape=(1, 128, 48, 48), classes=2,
+                            channels=(2, 4, 8, 16),
+                            strides=(2, 2, 2, 2,)).to(
         device)
 
-    if os.path.exists(savePath) and evaluationOnly:
-        model.load_state_dict(torch.load(savePath))
-        print(f"Loaded NN model from file '{savePath}'")
+    if os.path.exists(save_path) and only_evaluate:
+        model.load_state_dict(torch.load(save_path))
+        print(f"Loaded NN model from file '{save_path}'")
     else:
         print("Training NN from scratch")
 
-    loss_function = torch.nn.CrossEntropyLoss(weight=classWeights)
+    # Create CrossEntropyLoss and Adam optimizer
+    loss_function = torch.nn.CrossEntropyLoss(weight=class_weights)
     wandb.config.learning_rate = 1e-5
     optimizer = torch.optim.Adam(model.parameters(), wandb.config.learning_rate)
     wandb.watch(model)
@@ -255,8 +252,8 @@ def trainAndSaveModel(df, countTrain, savePath, num_epochs, val_interval, evalua
     best_metric_epoch = -1
     writer = SummaryWriter(log_dir=wandb.run.dir)
 
-    if evaluationOnly:
-        auc_metric, acc_metric = evaluateModel(model, val_loader, device, writer, 0, "eval")
+    if only_evaluate:
+        evaluate_model(model, val_loader, device, writer, 0, "eval")
         return sizes
 
     for epoch in range(num_epochs):
@@ -288,18 +285,18 @@ def trainAndSaveModel(df, countTrain, savePath, num_epochs, val_interval, evalua
 
         if (epoch + 1) % val_interval == 0:
             print("Evaluating on validation set")
-            auc_metric, acc_metric = evaluateModel(model, val_loader, device, writer, epoch, "val")
+            auc_metric, acc_metric = evaluate_model(model, val_loader, device, writer, epoch, "val")
 
             if auc_metric >= best_metric:
                 best_metric = auc_metric
                 best_metric_epoch = epoch + 1
-                torch.save(model.state_dict(), savePath)
+                torch.save(model.state_dict(), save_path)
                 torch.save(model.state_dict(), os.path.join(wandb.run.dir, 'miqa01.pt'))
                 print("saved new best metric model")
             else:
-                epochSuffix = ".epoch" + str(epoch + 1)
-                torch.save(model.state_dict(), savePath + epochSuffix)
-                torch.save(model.state_dict(), os.path.join(wandb.run.dir, 'miqa01.pt' + epochSuffix))
+                epoch_suffix = ".epoch" + str(epoch + 1)
+                torch.save(model.state_dict(), save_path + epoch_suffix)
+                torch.save(model.state_dict(), os.path.join(wandb.run.dir, 'miqa01.pt' + epoch_suffix))
             print(
                 "current epoch: {} current accuracy: {:.4f} current AUC: {:.4f} best AUC: {:.4f} at epoch {}".format(
                     epoch + 1, acc_metric, auc_metric, best_metric, best_metric_epoch
@@ -307,14 +304,14 @@ def trainAndSaveModel(df, countTrain, savePath, num_epochs, val_interval, evalua
             )
 
             print("Evaluating on training set")
-            evaluateModel(model, train_loader, device, writer, epoch, "train")
+            evaluate_model(model, train_loader, device, writer, epoch, "train")
 
     print(f"train completed, best_metric: {best_metric:.4f} at epoch: {best_metric_epoch}")
     writer.close()
     return sizes
 
 
-def main(valdationFold, evaluationOnly):
+def main(validation_fold, evaluate_only):
     monai.config.print_config()
     logging.basicConfig(stream=sys.stdout, level=logging.INFO)
     wandb.init(project="miqa_01", sync_tensorboard=True)
@@ -326,14 +323,14 @@ def main(valdationFold, evaluationOnly):
     df = pd.concat(folds)
     print(df)
 
-    print(f"Using fold {valdationFold} for validation")
-    vf = folds.pop(valdationFold)
+    print(f"Using fold {validation_fold} for validation")
+    vf = folds.pop(validation_fold)
     folds.append(vf)
     df = pd.concat(folds)
-    countTrain = df.shape[0] - vf.shape[0]
-    model_path = os.getcwd() + f"/miqa01-val{valdationFold}.pth"
-    sizes = trainAndSaveModel(df, countTrain, savePath=model_path, num_epochs=15, val_interval=4,
-                              evaluationOnly=evaluationOnly)
+    count_train = df.shape[0] - vf.shape[0]
+    model_path = os.getcwd() + f"/miqa01-val{validation_fold}.pth"
+    sizes = train_and_save_model(df, count_train, save_path=model_path, num_epochs=15, val_interval=4,
+                                 only_evaluate=evaluate_only)
 
     print("Image size distribution:\n", sizes)
 
@@ -348,8 +345,8 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         fold = int(sys.argv[1])
 
-    evaluationOnly = False
+    evaluation_only = False
     if len(sys.argv) > 2:
-        evaluationOnly = (int(sys.argv[2]) != 0)
+        evaluation_only = (int(sys.argv[2]) != 0)
 
-    main(fold, evaluationOnly)
+    main(fold, evaluation_only)
