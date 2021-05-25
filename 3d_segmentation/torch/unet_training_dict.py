@@ -59,10 +59,11 @@ def main(tempdir):
     train_files = [{"img": img, "seg": seg} for img, seg in zip(images[:20], segs[:20])]
     val_files = [{"img": img, "seg": seg} for img, seg in zip(images[-20:], segs[-20:])]
 
+    itk_reader = monai.data.ITKReader()
     # define transforms for image and segmentation
     train_transforms = Compose(
         [
-            LoadImaged(keys=["img", "seg"]),
+            LoadImaged(keys=["img", "seg"], reader=itk_reader),
             AsChannelFirstd(keys=["img", "seg"], channel_dim=-1),
             ScaleIntensityd(keys="img"),
             RandCropByPosNegLabeld(
@@ -74,7 +75,7 @@ def main(tempdir):
     )
     val_transforms = Compose(
         [
-            LoadImaged(keys=["img", "seg"]),
+            LoadImaged(keys=["img", "seg"], reader=itk_reader),
             AsChannelFirstd(keys=["img", "seg"], channel_dim=-1),
             ScaleIntensityd(keys="img"),
             ToTensord(keys=["img", "seg"]),
