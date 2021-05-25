@@ -37,6 +37,7 @@ from monai.transforms import (
     ToTensord,
 )
 from monai.visualize import plot_2d_or_3d_image
+import itk
 
 
 def main(tempdir):
@@ -48,14 +49,14 @@ def main(tempdir):
     for i in range(40):
         im, seg = create_test_image_3d(128, 128, 128, num_seg_classes=1, channel_dim=-1)
 
-        n = nib.Nifti1Image(im, np.eye(4))
-        nib.save(n, os.path.join(tempdir, f"img{i:d}.nii.gz"))
+        n = itk.image_view_from_array(im)
+        itk.imwrite(n, os.path.join(tempdir, f"img{i:d}.nrrd"), compression=True)
 
-        n = nib.Nifti1Image(seg, np.eye(4))
-        nib.save(n, os.path.join(tempdir, f"seg{i:d}.nii.gz"))
+        n = itk.image_view_from_array(seg)
+        itk.imwrite(n, os.path.join(tempdir, f"seg{i:d}.nrrd"), compression=True)
 
-    images = sorted(glob(os.path.join(tempdir, "img*.nii.gz")))
-    segs = sorted(glob(os.path.join(tempdir, "seg*.nii.gz")))
+    images = sorted(glob(os.path.join(tempdir, "img*.nrrd")))
+    segs = sorted(glob(os.path.join(tempdir, "seg*.nrrd")))
     train_files = [{"img": img, "seg": seg} for img, seg in zip(images[:20], segs[:20])]
     val_files = [{"img": img, "seg": seg} for img, seg in zip(images[-20:], segs[-20:])]
 
